@@ -1,0 +1,103 @@
+/* app.css */
+.scroll-body {
+    height: 420px;
+    overflow: auto;
+    padding-right: 8px;
+}
+
+.scroll-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.scroll-body::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+}
+
+.nice-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: .95rem;
+    line-height: 1.45;
+    background: #fff;
+    border: 1px solid #e6e6e6;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, .04);
+}
+
+.nice-table caption {
+    caption-side: top;
+    text-align: left;
+    padding: 14px 16px 6px;
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: #374151;
+}
+
+.nice-table thead th {
+    position: sticky;
+    top: 0;
+    background: #f8e9f4;
+    color: #4a154b;
+    font-weight: 700;
+    letter-spacing: .2px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #e8d2e3;
+    white-space: nowrap;
+}
+
+.nice-table tbody td {
+    padding: 12px 14px;
+    vertical-align: top;
+    border-bottom: 1px dashed #efefef;
+}
+
+.nice-table tbody tr:nth-child(odd) td {
+    background: #fcfcfe;
+}
+
+.nice-table tbody tr:hover td {
+    background: #f7fbff;
+}
+
+.note {
+    margin-top: 10px;
+    background: #fff8e6;
+    border: 1px solid #ffe3a3;
+    color: #7a5d00;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: .9rem;
+}
+
+.chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #3730a3;
+    font-weight: 600;
+    font-size: .82rem;
+    margin-right: 6px;
+    border: 1px solid #e5e7eb;
+    line-height: 1.6;
+}
+
+/* 카드 4번 이미지가 스크롤 박스 안에 완전히 들어오도록 */
+.img-box {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.img-box img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    display: block;
+}
