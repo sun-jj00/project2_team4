@@ -136,7 +136,7 @@ def T1_make_square_radar(cluster_ids: list[int]) -> go.Figure:
                       angularaxis=dict(direction="clockwise", rotation=90, tickmode="array",
                                        tickvals=angles, ticktext=T1_METRICS), gridshape="linear")
     fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5,
-                                  traceorder="grouped"), margin=dict(l=50,r=50,t=50,b=100), height=480,
+                                  traceorder="grouped"), margin=dict(l=0,r=150,t=50,b=100), height=480,
                      paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="black"))
     return fig
 
