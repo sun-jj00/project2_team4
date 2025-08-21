@@ -897,8 +897,7 @@ def tab_app2_ui():
                     ui.card_header("교통 · 옵션"),
                     ui.input_checkbox("only_within_t", "반경 이내 요소만 표시", True),
                     ui.input_slider("traffic_pct", "은행 지점 교통스코어 분위(%)", 0, 100, (0, 100)),
-                    ui.input_action_button("apply_t", "선택 구간만 표시"),
-                    ui.br(),
+                    ui.input_action_button("apply_t", "적용"),
                     ui.input_action_button("btn_explain_t", "교통스코어 설명 보기"),
                     ui.output_ui("popup_t"),
                     style="min-height: 492px;",
@@ -931,8 +930,7 @@ def tab_app2_ui():
                     ui.card_header("복지 · 옵션"),
                     ui.input_checkbox("only_within_w", "반경 이내 요소만 표시", True),
                     ui.input_slider("welfare_pct", "은행 지점 복지스코어 분위(%)", 0, 100, (0, 100)),
-                    ui.input_action_button("apply_w", "선택 구간만 표시"),
-                    ui.br(),
+                    ui.input_action_button("apply_w", "적용"),
                     ui.input_action_button("btn_explain_w", "복지스코어 설명 보기"),
                     ui.output_ui("popup_w"),
                     style="min-height: 492px;",
@@ -1196,9 +1194,10 @@ gdf = gdf.merge(metrics, on="동", how="left")
 
 # ---------- UI ----------
 all_dongs = sorted(gdf["동"].dropna().unique().tolist())
-available_metrics = [c for c in ["포화도", "고령인구비율"] if c in gdf.columns]
+gdf['지점당인구수'] = gdf['포화도']
+available_metrics = [c for c in ["지점당인구수", "고령인구비율"] if c in gdf.columns]
 metric_choices = ["(없음)"] + available_metrics
-default_metric = "포화도" if "포화도" in available_metrics else (
+default_metric = "지점당인구수" if "지점당인구수" in available_metrics else (
     "고령인구비율" if "고령인구비율" in available_metrics else "(없음)"
 )
 
@@ -1989,14 +1988,14 @@ def tab_app3_server(input, output, session):
             fig = px.bar(
                 top, x="동", y=disp_col, title=title,
                 labels={"동": "동", disp_col: ylabel},
-                text=top[disp_col].round(1)
+                # text=top[disp_col].round(1)
             )
-            fig.update_traces(textposition="inside")  # 텍스트를 막대 내부에 고정
-            fig.update_traces(
-                insidetextfont=dict(size=BAR_TEXT_SIZE, color="white"),
-                outsidetextfont=dict(size=BAR_TEXT_SIZE, color="#111"),
-            )
-            fig.update_layout(uniformtext_minsize=BAR_TEXT_SIZE-2, uniformtext_mode="hide")
+            # fig.update_traces(textposition="inside")  # 텍스트를 막대 내부에 고정
+            # fig.update_traces(
+            #     insidetextfont=dict(size=BAR_TEXT_SIZE, color="white"),
+            #     outsidetextfont=dict(size=BAR_TEXT_SIZE, color="#111"),
+            # )
+            # fig.update_layout(uniformtext_minsize=BAR_TEXT_SIZE-2, uniformtext_mode="hide")
             fig.update_traces(
                 marker_color=bar_colors,
                 marker_line_color=line_colors,
@@ -2004,7 +2003,7 @@ def tab_app3_server(input, output, session):
             )
             fig.update_traces(
                 hovertemplate="동=%{x}<br>"+ylabel+"=%{y:.1f}"+("%" if is_ratio else "")+"<extra></extra>",
-                texttemplate="%{text:.1f}"+("%" if is_ratio else ""),
+                # texttemplate="%{text:.1f}"+("%" if is_ratio else ""),
                 cliponaxis=False
             )
             fig.update_layout(
@@ -2361,10 +2360,11 @@ app_ui = ui.page_fluid(
         ui.tags.link(rel="apple-touch-icon", href="apple-touch-icon.png", sizes="180x180"),
         ui.tags.link(rel="manifest", href="site.webmanifest"),
         ui.tags.meta(name="theme-color", content="#ffffff"),
+        ui.tags.title("대구지역 시니어 금융 서비스 전략 및 입지 제안")
     ),
     ui.div(
         {"class": "page-title"},
-        ui.tags.img(src="logo.png", alt="로고", loading="lazy", decoding="async"),
+        # ui.tags.img(src="logo.png", alt="로고", loading="lazy", decoding="async"),
         ui.h2("대구지역 시니어 금융 서비스 전략 및 입지 제안"),
     ),
     ui.navset_tab(

@@ -1,3 +1,26 @@
 /* ===== Tab2: 버튼/리스트/카드 예시 ===== */
 /* [id$="-some_button"] { ... } */
 /* .t2 .card-box { ... } */
+
+[id$='apply_t'], [id$='apply_w']{
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    color: #fff;
+    border: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .08);
+    min-width: 86px;
+    background: #10b981;
+    width: 100% !important;
+}
+
+[id$='btn_explain_t'], [id$='btn_explain_w'] {
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    color: #fff;
+    border: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .08);
+    background: #00acc1 !important;
+    color: #fff !important;
+}
