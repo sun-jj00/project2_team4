@@ -152,12 +152,11 @@ def tab_app1_ui():
             ),
             ui.tags.style(".btn-group { display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px; } .color-box { display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: middle; border: 1px solid #ccc; } .shiny-input-checkboxgroup .shiny-input-container { display: flex; flex-direction: column; } .checkbox { display: flex; align-items: center; } .checkbox label { flex-grow: 1; }")
         ),
-        ui.h5("은행 입지 클러스터 대시보드"),
         ui.layout_sidebar(
             ui.sidebar(
                 ui.div(
-                    ui.input_action_button("select_all", "전체선택", class_="btn-sm btn-outline-primary"),
-                    ui.input_action_button("deselect_all", "전체해제", class_="btn-sm btn-outline-secondary"),
+                    ui.input_action_button("select_all", "모두선택", class_="btn-sm btn-outline-primary"),
+                    ui.input_action_button("deselect_all", "모두해제", class_="btn-sm btn-outline-secondary"),
                     class_="btn-group"
                 ),
                 ui.input_checkbox_group(
@@ -889,8 +888,6 @@ def tab_app2_ui():
     .sidebar-card .card-body { width: 90%; margin: 0 auto; }
     """),
 
-    ui.h5("지점 별 스코어 - 대중교통 및 노인복지 인프라"),
-
     ui.navset_tab(
         ui.nav_panel(
             "교통스코어 맵",
@@ -1376,8 +1373,6 @@ def tab_app3_ui():
             setTimeout(function(){ sendVH(true); }, 150);
             })();
     """),
-
-    title="대구시 고령인구비율 및 은행 지점당 인구수"
 )
 
 @module.server
@@ -2148,14 +2143,14 @@ def tab_app4_server(input, output, session):
             """
 ### 배경
 1. **전국 은행들의 오프라인 지점·ATM 감소 추세**  
-   - *시사점:* 비대면 확산 속 오프라인 채널 축소 → **고령·저소득층 금융 접근성 리스크**
+   - 시사점: 비대면 확산 속 오프라인 채널 축소 → **고령·저소득층 금융 접근성 리스크**
 
 2. **대구의 고령화 현실(광역시 중 2위)**  
-   - *시사점:* 대구는 고령화가 뚜렷 → **디지털 전환의 사각지대**가 생기기 쉬움
+   - 시사점: 대구는 고령화가 뚜렷 → **디지털 전환의 사각지대**가 생기기 쉬움
 
 3. **세대간 디지털 금융 이용 격차**  
    - 최근 1개월 모바일 금융 이용경험: **20~40대 95%+ vs 60대+ 53.8% (2025년 3월 기준)**  
-   - *시사점:* 세대 간 격차에 따른 **취약계층 맞춤 보완 채널** 필요
+   - 시사점: 세대 간 격차에 따른 **취약계층 맞춤 보완 채널** 필요
 
 ### 전국적 대응 현황
 1) 일부 은행이 **시니어 특화 점포**를 운영 중이나, **서울·수도권 편중**  
@@ -2195,9 +2190,9 @@ def tab_app4_server(input, output, session):
             {"src":"공공데이터포털", "src_sub":"", 
              "name":"대구광역시 시내버스 정류소 위치정보", "name_sub":"", "use":"버스정류소 행정코드, GPS, 경유노선"},
             {"src":"공공데이터포털", "src_sub":"", 
-             "name":"국가철도공단-대구_지하철-주소데이터", "name_sub":"", "use":"지하철역명, 주소"},
+             "name":"국가철도공단 대구 지하철 주소데이터", "name_sub":"", "use":"지하철역명, 주소"},
             {"src":"공공데이터포털", "src_sub":"", 
-             "name":"대구광역시_경로당", "name_sub":"", "use":"경로당명, 주소"},
+             "name":"대구광역시 경로당", "name_sub":"", "use":"경로당명, 주소"},
             {"src":"대구광역시청", "src_sub":"", 
              "name":"대구광역시 노인여가복지시설", "name_sub":"", "use":"복지회관 기관명, 주소"},
             {"src":"행정안전부", "src_sub":"", 
