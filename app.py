@@ -136,7 +136,7 @@ def T1_make_square_radar(cluster_ids: list[int]) -> go.Figure:
                       angularaxis=dict(direction="clockwise", rotation=90, tickmode="array",
                                        tickvals=angles, ticktext=T1_METRICS), gridshape="linear")
     fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5,
-                                  traceorder="grouped"), margin=dict(l=50,r=50,t=50,b=100), height=480,
+                                  traceorder="grouped"), margin=dict(l=0,r=150,t=50,b=100), height=480,
                      paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="black"))
     return fig
 
@@ -1215,7 +1215,10 @@ def tab_app3_ui():
             ui.input_action_button("select_all_", "☑ 모두선택"),
             ui.input_action_button("clear_all", "☐ 모두해제"),
         ),
-
+        ui.div(
+            {"class": "btn-row btn-row-apply"},
+            ui.input_action_button("apply", "적용"),
+        ),
         ui.tags.details(
             {"id": "dong_details", "open": ""},  # ← 이 부분 추가
             ui.tags.summary("읍·면·동 선택"),
@@ -1387,7 +1390,27 @@ def tab_app3_server(input, output, session):
             ui.notification_show(msg, type=type_, duration=dur_sec)
         except Exception:
             pass
+    # --- '적용'된 동 목록(지도/그래프는 이것만 봄) ---
+    applied = reactive.Value([])  # 초기엔 아무것도 적용 안 함
 
+    @reactive.Effect
+    @reactive.event(input.apply)
+    def _apply_selection():
+        sel = input.dongs() or []
+        applied.set(sel)
+        # (선택) 알림
+        try:
+            ui.notification_show(f"{len(sel)}개 동 적용 완료", type="message", duration=2.2)
+        except Exception:
+            pass
+    
+    @reactive.Effect
+    def _clip_applied_on_metric_change():
+        allowed = allowed_dongs_for_metric(input.metric())
+        cur = applied.get() or []
+        new = [d for d in cur if d in allowed]
+        if new != cur:
+            applied.set(new)
 
     # 현재 지표에서 값이 있는 동만 허용
     def allowed_dongs_for_metric(metric_name: str) -> list[str]:
@@ -1882,7 +1905,7 @@ def tab_app3_server(input, output, session):
     @output
     @render.ui
     def map_html():
-        selected = input.dongs() or []
+        selected = applied.get() or []     # ⬅️ 변경
         return ui.HTML(build_map_html(selected))
 
     # -------- Plotly: 세로 막대 Top10 (동적 높이) --------
@@ -2008,12 +2031,12 @@ def tab_app3_server(input, output, session):
     @render.ui
     def plot_elderly():
         map_h = map_height_safe()
-        gap_between_cards = 12  # 우측 카드 사이 간격 (CSS와 일치)
-        total_for_right = max(map_h - RIGHT_TRIM_PX, 0)
+        gap_between_cards = 12
+        total_for_right = max(map_h - RIGHT_TRIM_PX, 0) if 'RIGHT_TRIM_PX' in globals() else map_h
         height = max(int((total_for_right - gap_between_cards) / 2), 220)
 
-        selected = input.dongs() or []
-        fig = build_plotly_topN("고령인구비율", "동별 고령인구비율", "스코어", height, selected, topn=10)
+        selected = applied.get() or []     # ⬅️ 변경
+        fig = build_plotly_topN("고령인구비율", "동별 고령인구비율", "고령인구비율(%)", height, selected, topn=10)
         html = fig.to_html(full_html=False, include_plotlyjs="inline", config={"responsive": True})
         return ui.HTML(f'<div style="width:100%;height:{height}px;">{html}</div>')
 
@@ -2022,10 +2045,10 @@ def tab_app3_server(input, output, session):
     def plot_saturation():
         map_h = map_height_safe()
         gap_between_cards = 12
-        total_for_right = max(map_h - RIGHT_TRIM_PX, 0)
+        total_for_right = max(map_h - RIGHT_TRIM_PX, 0) if 'RIGHT_TRIM_PX' in globals() else map_h
         height = max(int((total_for_right - gap_between_cards) / 2), 220)
 
-        selected = input.dongs() or []
+        selected = applied.get() or []
         fig = build_plotly_topN("포화도", "동별 지점당 인구수", "스코어", height, selected, topn=10)
         html = fig.to_html(full_html=False, include_plotlyjs="inline", config={"responsive": True})
         return ui.HTML(f'<div style="width:100%;height:{height}px;">{html}</div>')
@@ -2332,22 +2355,17 @@ def tab_app4_server(input, output, session):
 # -----------------------------------------------------------------------------
 app_ui = ui.page_fluid(
     ui.head_content(
+        ui.tags.link(rel="stylesheet", href="common.css"),
+        ui.tags.link(rel="stylesheet", href="tab1.css"),
+        ui.tags.link(rel="stylesheet", href="tab2.css"),
+        ui.tags.link(rel="stylesheet", href="tab3.css"),
+        ui.tags.link(rel="stylesheet", href="tab4.css"),
         ui.tags.link(rel="icon", href="favicon.ico", type="image/x-icon"),
         ui.tags.link(rel="icon", href="favicon-32x32.png", type="image/png", sizes="32x32"),
         ui.tags.link(rel="icon", href="favicon-16x16.png", type="image/png", sizes="16x16"),
         ui.tags.link(rel="apple-touch-icon", href="apple-touch-icon.png", sizes="180x180"),
         ui.tags.link(rel="manifest", href="site.webmanifest"),
         ui.tags.meta(name="theme-color", content="#ffffff"),
-        ui.tags.style("""
-            .page-title { display: flex; align-items:center; gap:10px; margin:0 0 8px 0; }
-            .page-title img { height:28px; width:auto; }
-            @media (min-width:1280px){ .page-title img{ height:32px; } }
-        """),
-        ui.tags.link(rel="stylesheet", href="common.css"),
-        ui.tags.link(rel="stylesheet", href="tab1.css"),
-        ui.tags.link(rel="stylesheet", href="tab2.css"),
-        ui.tags.link(rel="stylesheet", href="tab3.css"),
-        ui.tags.link(rel="stylesheet", href="tab4.css"),
     ),
     ui.div(
         {"class": "page-title"},

@@ -68,3 +68,21 @@ details>summary {
     font-family: Malgun Gothic, AppleGothic, NanumGothic, "Noto Sans KR", Arial, sans-serif !important;
 }
 
+.page-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 8px 0;
+}
+
+.page-title img {
+    height: 28px;
+    width: auto;
+}
+
+@media (min-width:1280px) {
+    .page-title img {
+        height: 32px;
+    }
+}
+

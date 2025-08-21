@@ -1,3 +1,7 @@
+hr {
+    margin: 1px;
+}
+
 /* --- 카드/제목/구분선 --- */
 .card-box {
     background: #fff;
@@ -138,3 +142,56 @@ details>summary {
 .btn-glossary:hover {
     background: #475569 !important;
 }
+
+[id$='-apply'] {
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    color: #fff;
+    border: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .08);
+    min-width: 86px;
+    background: #10b981;
+    width: 90% !important;
+}
+
+[id$='-apply']:hover {
+    background: #0ea37a;
+}
+
+[id$='-select_all_'],
+[id$='-clear_all'] {
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    color: #fff;
+    border: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .08);
+    min-width: 86px;
+}
+
+[id$='-select_all_'] {
+    background: #2196f3;
+}
+
+[id$='-select_all_']:hover {
+    background: #1e88e5;
+}
+
+[id$='-clear_all'] {
+    background: #f44336;
+}
+
+[id$='-clear_all']:hover {
+    background: #e53935;
+}
+
+.btn-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin: 0 0 8px 0;
+}
+
+.btn-row-apply {
+    margin-top: 6px; }
