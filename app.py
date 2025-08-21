@@ -188,7 +188,7 @@ def tab_app1_ui():
                     ),
                     ui.column(5,
                         ui.card(
-                            ui.card_header("특징 비교 (레이더 차트)"),
+                            ui.card_header("특징 비교"),
                             output_widget("radar_chart"),
                             style="height: 60vh;"
                         )
