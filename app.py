@@ -77,7 +77,7 @@ T1_CLUSTER_COLORS = {
     6: {'line': 'red',   'fill': 'rgba(255, 0, 0, 0.1)'}
 }
 
-T1_METRICS = ["교통스코어", "복지스코어", "고령인구비율", "포화도"]
+T1_METRICS = ["교통스코어", "복지스코어", "고령인구비율", "지점당인구수"]
 for _c in T1_METRICS:
     T1_DF[_c] = pd.to_numeric(T1_DF.get(_c), errors='coerce')
 
