@@ -2360,10 +2360,11 @@ app_ui = ui.page_fluid(
         ui.tags.link(rel="apple-touch-icon", href="apple-touch-icon.png", sizes="180x180"),
         ui.tags.link(rel="manifest", href="site.webmanifest"),
         ui.tags.meta(name="theme-color", content="#ffffff"),
+        ui.tags.title("대구지역 시니어 금융 서비스 전략 및 입지 제안")
     ),
     ui.div(
         {"class": "page-title"},
-        ui.tags.img(src="logo.png", alt="로고", loading="lazy", decoding="async"),
+        # ui.tags.img(src="logo.png", alt="로고", loading="lazy", decoding="async"),
         ui.h2("대구지역 시니어 금융 서비스 전략 및 입지 제안"),
     ),
     ui.navset_tab(
