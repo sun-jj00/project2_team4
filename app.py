@@ -2332,22 +2332,17 @@ def tab_app4_server(input, output, session):
 # -----------------------------------------------------------------------------
 app_ui = ui.page_fluid(
     ui.head_content(
+        ui.tags.link(rel="stylesheet", href="common.css"),
+        ui.tags.link(rel="stylesheet", href="tab1.css"),
+        ui.tags.link(rel="stylesheet", href="tab2.css"),
+        ui.tags.link(rel="stylesheet", href="tab3.css"),
+        ui.tags.link(rel="stylesheet", href="tab4.css"),
         ui.tags.link(rel="icon", href="favicon.ico", type="image/x-icon"),
         ui.tags.link(rel="icon", href="favicon-32x32.png", type="image/png", sizes="32x32"),
         ui.tags.link(rel="icon", href="favicon-16x16.png", type="image/png", sizes="16x16"),
         ui.tags.link(rel="apple-touch-icon", href="apple-touch-icon.png", sizes="180x180"),
         ui.tags.link(rel="manifest", href="site.webmanifest"),
         ui.tags.meta(name="theme-color", content="#ffffff"),
-        ui.tags.style("""
-            .page-title { display: flex; align-items:center; gap:10px; margin:0 0 8px 0; }
-            .page-title img { height:28px; width:auto; }
-            @media (min-width:1280px){ .page-title img{ height:32px; } }
-        """),
-        ui.tags.link(rel="stylesheet", href="common.css"),
-        ui.tags.link(rel="stylesheet", href="tab1.css"),
-        ui.tags.link(rel="stylesheet", href="tab2.css"),
-        ui.tags.link(rel="stylesheet", href="tab3.css"),
-        ui.tags.link(rel="stylesheet", href="tab4.css"),
     ),
     ui.div(
         {"class": "page-title"},
