@@ -2351,7 +2351,11 @@ app_ui = ui.page_fluid(
         ui.tags.link(rel="stylesheet", href="tab3.css"),
         ui.tags.link(rel="stylesheet", href="tab4.css"),
     ),
-    ui.h2("대구지역 디지털 금융 취약계층 분석 및 스마트지점 입지추천"),
+    ui.div(
+        {"class": "page-title"},
+        ui.tags.img(src="logo.png", alt="로고", loading="lazy", decoding="async"),
+        ui.h2("대구지역 디지털 금융 취약계층 분석 및 스마트지점 입지추천"),
+    ),
     ui.navset_tab(
         ui.nav_panel("스마트지점 입지 추천", tab_app1_ui("t1")),
         ui.nav_panel("교통/복지 스코어", tab_app2_ui("t2")),
