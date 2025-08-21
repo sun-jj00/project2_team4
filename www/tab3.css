@@ -1,0 +1,140 @@
+/* --- 카드/제목/구분선 --- */
+.card-box {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 10px 12px 12px 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+}
+
+.card-title {
+    background: #f7f8fa;
+    border: 1px solid #eef0f2;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-weight: 700;
+    display: inline-block;
+    margin: 2px 0 8px 2px;
+}
+
+.card-divider {
+    height: 1px;
+    background: #e8eaee;
+    margin: 4px 0 10px 0;
+}
+
+/* --- 지도 컨테이너( id → 끝매칭 + class ) --- */
+#map_container,
+[id$="-map_container"],
+.map-container {
+    min-height: 300px;
+    position: relative;
+    z-index: 0;
+    overflow: hidden;
+}
+
+#map_container .folium-map,
+#map_container .leaflet-container,
+#map_container iframe,
+#map_container>div,
+[id$="-map_container"] .folium-map,
+[id$="-map_container"] .leaflet-container,
+[id$="-map_container"] iframe,
+[id$="-map_container"]>div,
+.map-container .folium-map,
+.map-container .leaflet-container,
+.map-container iframe,
+.map-container>div {
+    height: 100% !important;
+    width: 100% !important;
+    position: relative !important;
+    z-index: 0 !important;
+    display: block;
+}
+
+/* --- 사이드바 리스트 컨테이너 --- */
+#dong_list_container,
+[id$="-dong_list_container"],
+.dong-list-container {
+    max-height: 40vh;
+    overflow: auto;
+    border: 1px solid #eee;
+    padding: 6px;
+    border-radius: 8px;
+    background: #fff;
+}
+
+/* --- details/summary --- */
+details>summary {
+    cursor: pointer;
+    font-weight: 600;
+    margin: 0 0 6px 0;
+}
+
+/* --- '모두선택/모두해제' 버튼 --- */
+.btn-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin: 0 0 8px 0;
+}
+
+#select_all_,
+#clear_all,
+[id$="-select_all_"],
+[id$="-clear_all"],
+.btn-bulk {
+    padding: 8px 14px !important;
+    border-radius: 8px !important;
+    font-weight: 500 !important;
+    font-size: 12px;
+    color: #fff !important;
+    border: none !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .08);
+    min-width: 93px;
+}
+
+#select_all_,
+[id$="-select_all_"],
+.btn-bulk--select {
+    background: #2196f3 !important;
+}
+
+#select_all_:hover,
+[id$="-select_all_"]:hover,
+.btn-bulk--select:hover {
+    background: #1e88e5 !important;
+}
+
+#clear_all,
+[id$="-clear_all"],
+.btn-bulk--clear {
+    background: #f44336 !important;
+}
+
+#clear_all:hover,
+[id$="-clear_all"]:hover,
+.btn-bulk--clear:hover {
+    background: #e53935 !important;
+}
+
+/* --- 용어 설명 버튼 --- */
+#btn_glossary,
+[id$="-btn_glossary"],
+.btn-glossary {
+    padding: 8px 14px !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    color: #fff !important;
+    background: #64748b !important;
+    /* slate */
+    border: none !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .08);
+    margin-bottom: 8px;
+}
+
+#btn_glossary:hover,
+[id$="-btn_glossary"]:hover,
+.btn-glossary:hover {
+    background: #475569 !important;
+}

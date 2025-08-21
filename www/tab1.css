@@ -1,0 +1,41 @@
+/* ===== Tab1: 좌측 컨트롤 버튼 ===== */
+[id$="-select_all"],
+[id$="-deselect_all"],
+[id$="-show_policy"] {
+    padding: 8px 12px !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 12px;
+    border: none !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .08);
+}
+
+[id$="-select_all"] {
+    background: #2196f3 !important;
+    color: #fff !important;
+}
+
+[id$="-select_all"]:hover {
+    background: #1e88e5 !important;
+}
+
+[id$="-deselect_all"] {
+    background: #9e9e9e !important;
+    color: #fff !important;
+}
+
+[id$="-deselect_all"]:hover {
+    background: #757575 !important;
+}
+
+[id$="-show_policy"] {
+    background: #00acc1 !important;
+    color: #fff !important;
+}
+
+/* ===== Tab1: 카드 높이 힌트 (필요 시) ===== */
+.t1 .map-card,
+.t1 .plot-card {
+    height: 60vh;
+    min-height: 420px;
+}

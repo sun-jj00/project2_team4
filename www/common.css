@@ -1,0 +1,70 @@
+/* ===== 공통 카드/타이틀 ===== */
+.card-box {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 10px 12px 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+}
+
+.card-title {
+    background: #f7f8fa;
+    border: 1px solid #eef0f2;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-weight: 700;
+    display: inline-block;
+    margin: 2px 0 8px 2px;
+}
+
+.card-divider {
+    height: 1px;
+    background: #e8eaee;
+    margin: 4px 0 10px;
+}
+
+/* ===== 공통 버튼 행 ===== */
+.btn-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin: 0 0 8px 0;
+}
+
+/* ===== details 기본 ===== */
+details>summary {
+    cursor: pointer;
+    font-weight: 600;
+    margin: 0 0 6px 0;
+}
+
+/* ===== 지도 컨테이너(공통 class 또는 id 끝매칭) ===== */
+.map-container,
+[id$="-map_container"] {
+    min-height: 300px;
+    position: relative;
+    z-index: 0;
+    overflow: hidden;
+}
+
+.map-container .folium-map,
+.map-container .leaflet-container,
+.map-container iframe,
+.map-container>div,
+[id$="-map_container"] .folium-map,
+[id$="-map_container"] .leaflet-container,
+[id$="-map_container"] iframe,
+[id$="-map_container"]>div {
+    height: 100% !important;
+    width: 100% !important;
+    position: relative !important;
+    z-index: 0 !important;
+    display: block;
+}
+
+/* ===== Plotly 내부 텍스트가 잘 보이도록(기본 폰트) ===== */
+.plotly .main-svg text,
+.plotly text {
+    font-family: Malgun Gothic, AppleGothic, NanumGothic, "Noto Sans KR", Arial, sans-serif !important;
+}
+
