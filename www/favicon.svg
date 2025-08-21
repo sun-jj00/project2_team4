@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <style>
+      .bg{fill:#0b2540;} /* deep navy */
+      .accent{fill:#f0b90b;} /* gold */
+      .shadow{opacity:.12}
+    </style>
+  </defs>
+  <!-- base & roof -->
+  <path class="bg" d="M24 210h208a12 12 0 0 1 12 12v8a12 12 0 0 1-12 12H24a12 12 0 0 1-12-12v-8a12 12 0 0 1 12-12z"/>
+  <path class="bg" d="M28 88h200L128 24 28 88z"/>
+  <!-- columns -->
+  <rect class="bg" x="44" y="92" width="36" height="108" rx="6"/>
+  <rect class="bg" x="110" y="92" width="36" height="108" rx="6"/>
+  <rect class="bg" x="176" y="92" width="36" height="108" rx="6"/>
+  <!-- pedestal -->
+  <rect class="bg" x="36" y="192" width="184" height="16" rx="8"/>
+  <!-- won symbol (₩) constructed with strokes as paths for crispness -->
+  <g transform="translate(0,-6)">
+    <path class="accent" d="M92 172h72v12H92z"/>
+    <path class="accent" d="M88 154h80v12H88z"/>
+    <path class="accent" d="M106 92h20l10 48h4l10-48h20l-20 86h-24z"/>
+  </g>
+</svg>
