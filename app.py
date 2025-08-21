@@ -77,7 +77,7 @@ T1_CLUSTER_COLORS = {
     6: {'line': 'red',   'fill': 'rgba(255, 0, 0, 0.1)'}
 }
 
-T1_METRICS = ["교통스코어", "복지스코어", "고령인구비율", "포화도"]
+T1_METRICS = ["교통스코어", "복지스코어", "고령인구비율", "지점당인구수"]
 for _c in T1_METRICS:
     T1_DF[_c] = pd.to_numeric(T1_DF.get(_c), errors='coerce')
 
@@ -177,6 +177,14 @@ def tab_app1_ui():
                     },
                     selected=[], inline=False
                 ),
+                # === 추가된 적용 버튼 ===
+                ui.input_action_button(
+                    "apply_filters", 
+                    "적용", 
+                    style="padding: 8px 14px; border-radius: 8px; font-weight: 600; color: #fff; border: none; box-shadow: 0 1px 2px rgba(0, 0, 0, .08); min-width: 86px; background: #10b981; width: 100% !important;"
+                ),
+                # =======================
+                ui.hr(), # 구분선 추가
                 ui.input_switch("policy_switch", "정책 제안만 보기", value=False),
                 ui.input_action_button("show_policy", "정책 설명", class_="btn-sm btn-info w-100 mt-2"),
                 width="350px", open="always"
@@ -196,7 +204,7 @@ def tab_app1_ui():
                 ),
                 ui.card(
                     ui.card_header("데이터 테이블", ui.download_button("download_csv", "CSV 저장",
-                               class_="btn-sm btn-outline-primary float-end")),
+                                        class_="btn-sm btn-outline-primary float-end")),
                     ui.output_data_frame("data_table")
                 ),
                 ui.download_button("download_map", "지도 저장 (HTML)", class_="btn-primary w-100 mt-3")
@@ -206,21 +214,33 @@ def tab_app1_ui():
 
 @module.server
 def tab_app1_server(input, output, session):
+    # '적용' 버튼을 눌렀을 때의 선택값을 저장할 반응형 값
+    # 초기값은 모두 선택된 상태로 설정
+    applied_selected_clusters = reactive.Value(["0", "5", "6"])
+    T1_CURRENT_MAP = reactive.Value(None)
+    
     @reactive.Effect
     @reactive.event(input.select_all)
     def _sel_all():
-        ui.update_checkbox_group("selected_clusters", selected=["0","5","6"])  # same IDs
+        ui.update_checkbox_group("selected_clusters", selected=["0","5","6"])
 
     @reactive.Effect
     @reactive.event(input.deselect_all)
     def _desel_all():
         ui.update_checkbox_group("selected_clusters", selected=[])
 
+    # === '적용' 버튼 클릭 이벤트 처리 ===
+    @reactive.Effect
+    @reactive.event(input.apply_filters)
+    def _apply_filters():
+        # 현재 체크박스의 선택값을 applied_selected_clusters에 저장
+        applied_selected_clusters.set(input.selected_clusters())
+    # ===================================
+        
     @reactive.Effect
     @reactive.event(input.show_policy)
     def _show_policy():
         m = ui.modal(
-            ui.h4("클러스터별 정책 제안"), ui.tags.hr(),
             ui.h5(T1_CLUSTER_NAMES[0]),
             ui.p(ui.HTML('<b>찾아가는 금융서비스 시행 지점 제안</b><br>취지: 도내 시외지역 및 복지관 이용 어르신들의 금융편의\
 <br>제안: 외곽지역(군위군, 달성군) 지점들을 <span style="background-color: rgba(0,0,255,0.2);">찾아가는 금융서비스</span> 거점으로 선정')),
@@ -233,18 +253,23 @@ def tab_app1_server(input, output, session):
         )
         ui.modal_show(m)
 
+    # === 데이터 필터링 로직 수정 ===
     @reactive.Calc
     def T1_filtered_df_full():
         base_df = T1_DF[T1_DF['클러스터'].isin([0,5,6])]
-        if not input.selected_clusters():
+        
+        # input.selected_clusters() 대신 applied_selected_clusters.get() 사용
+        current_selection = applied_selected_clusters.get()
+        if not current_selection:
             return base_df
-        selected = [int(c) for c in input.selected_clusters()]
+        
+        selected = [int(c) for c in current_selection]
         filtered = T1_DF[T1_DF['클러스터'].isin(selected)].copy()
+        
         if input.policy_switch():
             filtered = filtered[filtered['정책제안클러스터'] == filtered['클러스터']]
         return filtered
-
-    T1_CURRENT_MAP = reactive.Value(None)
+    # ===============================
 
     @output
     @render.ui
@@ -253,50 +278,54 @@ def tab_app1_server(input, output, session):
         _map = folium.Map(location=[35.8714, 128.6014], zoom_start=11, tiles="cartodbpositron")
         if T1_BOUNDARY:
             tooltip = folium.GeoJsonTooltip(fields=['ADM_DR_NM'], aliases=[''],
-                      style=('background-color: white; color: black; font-family: sans-serif; font-size: 10px; padding: 5px;'))
+                                    style=('background-color: white; color: black; font-family: sans-serif; font-size: 10px; padding: 5px;'))
             folium.GeoJson(T1_BOUNDARY, style_function=lambda x: {'color': '#808080','weight':1.0,'fillOpacity':0,'opacity':0.7},
-                           tooltip=tooltip).add_to(_map)
+                            tooltip=tooltip).add_to(_map)
         if not map_data.empty:
             for _, row in map_data.iterrows():
                 color = 'yellow' if row.get('은행id') == 31 else T1_CLUSTER_COLORS.get(row.get('클러스터'), {'line':'#888'})['line']
                 tooltip_text = f"{row.get('은행','-')}<br>{row.get('지점명','-')}<br>{row.get('읍면동','-')}"
                 folium.Circle(location=[row['위도'], row['경도']], radius=500, color=color, fill=True,
-                              fill_color=color, fill_opacity=0.15).add_to(_map)
+                                fill_color=color, fill_opacity=0.15).add_to(_map)
                 folium.CircleMarker(location=[row['위도'], row['경도']], radius=4, color=color, fill=True,
-                                    fill_color=color, fill_opacity=0.8, tooltip=tooltip_text).add_to(_map)
+                                        fill_color=color, fill_opacity=0.8, tooltip=tooltip_text).add_to(_map)
         T1_CURRENT_MAP.set(_map)
         return ui.HTML(_map._repr_html_())
 
     @output
     @render_widget
     def radar_chart():
-        if not input.selected_clusters():
+        # input.selected_clusters() 대신 applied_selected_clusters.get() 사용
+        current_selection = applied_selected_clusters.get()
+        if not current_selection:
             fig = go.Figure().update_layout(
                 height=400,
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
-                annotations=[dict(text="클러스터를 선택하여<br>특성을 비교하세요.", showarrow=False, font=dict(size=16, color="grey"))]
+                annotations=[dict(text="클러스터를 선택하고 '적용'을 누르세요.", showarrow=False, font=dict(size=16, color="grey"))]
             )
             return fig
-        cids = [int(c) for c in input.selected_clusters()]
+        cids = [int(c) for c in current_selection]
         return T1_make_square_radar(cids)
 
     @output
     @render.data_frame
     def data_table():
-        cols = ['은행id','은행','지점명','주소','구군','읍면동','복지스코어','교통스코어','고령인구비율','포화도']
+        cols = ['은행','지점명','주소','구군','읍면동','복지스코어','교통스코어','고령인구비율','지점당인구수']
         data = T1_filtered_df_full()
         return data[[c for c in cols if c in data.columns]]
 
     @session.download(filename="filtered_data.csv")
     def download_csv():
-        cols = ['은행id','은행','지점명','주소','구군','읍면동','복지스코어','교통스코어','고령인구비율','포화도']
+        cols = ['은행','지점명','주소','구군','읍면동','복지스코어','교통스코어','고령인구비율','지점당인구수']
         data = T1_filtered_df_full()
         yield data[[c for c in cols if c in data.columns]].to_csv(index=False, encoding='utf-8-sig')
 
     @session.download(filename="daegu_bank_map.html")
     def download_map():
         _map = T1_CURRENT_MAP.get()
+        if _map is None: # 맵이 아직 생성되지 않았을 경우를 대비
+            return
         temp_file = APP_DIR / "temp_map.html"
         _map.save(str(temp_file))
         with open(temp_file, "rb") as f:
@@ -465,11 +494,34 @@ def discrete_legend_html(title: str, vmin: float, vmax: float, cm, reverse: bool
     """
 
 # === 하단 그래프: 읍면동 Top5 막대 ===
+# === 하단 그래프: 읍면동 Top5 막대 ===
 def make_top5_admin_fig(df_filtered: pd.DataFrame, title: str, n_top: int = 5):
     fig, ax = plt.subplots(figsize=(10, 5), dpi=100)
 
+    # === 요청하신 스타일 적용 부분 시작 ===
+    
+    # 1. Figure와 Axes의 배경색을 연한 회색/파란색 톤으로 설정합니다.
+    plot_bg_color = '#eef2f6'  # 이미지와 유사한 배경색
+    fig.set_facecolor(plot_bg_color)
+    ax.set_facecolor(plot_bg_color)
+
+    # 2. 그리드를 y축(수평선)에만 흰색으로 설정합니다.
+    #    linewidth와 alpha를 조절하여 선명도를 맞춥니다.
+    ax.grid(axis='y', color='white', linestyle='-', linewidth=1.5, alpha=0.8)
+    
+    # 3. 그리드가 막대그래프 '뒤'에 그려지도록 설정합니다. (매우 중요)
+    ax.set_axisbelow(True)
+
+    # 4. 불필요한 테두리(spines)를 제거하여 깔끔하게 만듭니다.
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['bottom'].set_color('#a0a0a0') # 하단 x축 선은 연한 회색으로 유지
+    
+    # === 스타일 적용 부분 끝 ===
+
     if ADMIN_COL not in df_filtered.columns or df_filtered.empty:
-        ax.text(0.5, 0.5, "표시할 데이터가 없습니다.", ha="center", va="center", fontsize=12)
+        ax.text(0.5, 0.5, "표시할 데이터가 없습니다.", ha="center", va="center", fontsize=12, color='grey')
         ax.axis("off")
         fig.tight_layout()
         return fig
@@ -485,34 +537,35 @@ def make_top5_admin_fig(df_filtered: pd.DataFrame, title: str, n_top: int = 5):
     x = counts.index.tolist()
     y = counts.values.tolist()
 
-    # YlOrRd 팔레트에서 5색 (연한→진한). Top값이 왼쪽이므로 진한색부터 주고 싶으면 reversed 사용.
     YLORRD_5 = ["#ffffcc", "#fed976", "#fd8d3c", "#e31a1c", "#800026"]
-    colors = list(reversed(YLORRD_5[:len(y)]))  # 큰 값일수록 진한색
-
-    #bars = sns.barplot(x=x, y=y, palette=colors, ax=ax, edgecolor="black", linewidth=1.0)
-
-    # 기존
-# bars = sns.barplot(x=x, y=y, palette=colors, ax=ax, edgecolor="black", linewidth=1.0)
-
-# 변경
+    colors = list(reversed(YLORRD_5[:len(y)])) 
+    
     palette_map = {lab: col for lab, col in zip(x, colors)}
     bars = sns.barplot(
         x=x, y=y,
-        hue=x,                     # <- hue 추가
-        palette=palette_map,       # <- 라벨별 색 매핑
+        hue=x,
+        palette=palette_map,
         dodge=False,
-        legend=False,              # <- 범례 숨김
+        legend=False,
         ax=ax,
-        edgecolor="black", linewidth=1.0
+        edgecolor="black", linewidth=0 # 테두리 선은 제거하거나 얇게 조절
     )
-    ax.bar_label(bars.containers[0], fmt="%.0f", padding=3, fontsize=10)
+    
+    # 막대 위에 값 표시
+    ax.bar_label(bars.containers[0], fmt="%.0f", padding=3, fontsize=11, color='#333')
 
-    ax.set_title(title)
-    ax.set_xlabel("행정동(읍면동)")
-    ax.set_ylabel("은행 지점 수")
+    ax.set_title(title, fontsize=14, pad=15)
+    ax.set_xlabel("행정동(읍면동)", fontsize=11)
+    ax.set_ylabel("은행 지점 수", fontsize=11)
     ax.set_ylim(0, max(y) * 1.15 if y else 1)
-    ax.tick_params(axis="x", rotation=25)
-    ax.grid(axis="y", alpha=0.3)
+    
+    # 눈금 및 라벨 색상 변경
+    ax.tick_params(axis='x', rotation=25, colors='dimgray')
+    ax.tick_params(axis='y', colors='dimgray')
+    
+    # 기존 grid 호출은 위에서 대체되었으므로 주석 처리 또는 삭제합니다.
+    # ax.grid(axis="y", alpha=0.3) 
+    
     fig.tight_layout()
     return fig
 
