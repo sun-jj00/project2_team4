@@ -155,8 +155,8 @@ def tab_app1_ui():
         ui.layout_sidebar(
             ui.sidebar(
                 ui.div(
-                    ui.input_action_button("select_all", "전체선택", class_="btn-sm btn-outline-primary"),
-                    ui.input_action_button("deselect_all", "전체해제", class_="btn-sm btn-outline-secondary"),
+                    ui.input_action_button("select_all", "모두선택", class_="btn-sm btn-outline-primary"),
+                    ui.input_action_button("deselect_all", "모두해제", class_="btn-sm btn-outline-secondary"),
                     class_="btn-group"
                 ),
                 ui.input_checkbox_group(
