@@ -1194,9 +1194,10 @@ gdf = gdf.merge(metrics, on="동", how="left")
 
 # ---------- UI ----------
 all_dongs = sorted(gdf["동"].dropna().unique().tolist())
-available_metrics = [c for c in ["포화도", "고령인구비율"] if c in gdf.columns]
+gdf['지점당인구수'] = gdf['포화도']
+available_metrics = [c for c in ["지점당인구수", "고령인구비율"] if c in gdf.columns]
 metric_choices = ["(없음)"] + available_metrics
-default_metric = "포화도" if "포화도" in available_metrics else (
+default_metric = "지점당인구수" if "지점당인구수" in available_metrics else (
     "고령인구비율" if "고령인구비율" in available_metrics else "(없음)"
 )
 
