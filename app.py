@@ -1477,13 +1477,13 @@ def tab_app3_server(input, output, session):
                 ui.tags.br(),
                 "3. 각 은행 지점에 대해 ‘구군’ , ‘행정동’, ‘고령인구비율’ 도출 ",
             ),
-            ui.tags.dt("포화도"),
+            ui.tags.dt("지점당 인구수"),
             ui.tags.dd(
                 "활용 데이터: 은행 지점별 주소(’구군’, ‘읍면동’), 대구광역시 동 별 인구수",
                 ui.tags.br(),
                 "1. ‘고령인구비율’ 도출 시 추가했던 각 은행 지점의 행정동에 대해 행정동 별 은행 수 집계",
                 ui.tags.br(),
-                "2. 각 행정동 별로   → 전체 인구수/ 은행 수   로 포화도 도출",
+                "2. 각 행정동 별로   → 전체 인구수/ 은행 수   로 도출",
                 ui.tags.br(),
                 "(해당 지수가 높을 경우 은행 수 대비 인구 수가 많아, 은행 방문 시 대기 시간이 길어지는 등 포화될 가능성이 높은 것으로 판단) "
             ),
@@ -2041,10 +2041,10 @@ def tab_app4_ui():
         # 1행
         ui.layout_columns(
             ui.card(ui.card_header("1. 주제 선정 배경 및 필요성"),
-                    ui.div(ui.output_ui("appendix_1"), class_="scroll-body"),
+                    ui.div(ui.output_ui("appendix_1")),   # scroll-body 제거
                     style="height:460px;"),
             ui.card(ui.card_header("2. 분석 개요"),
-                    ui.div(ui.output_ui("appendix_2"), class_="scroll-body"),
+                    ui.div(ui.output_ui("appendix_2")),   # scroll-body 제거
                     style="height:460px;"),
             col_widths=[6,6]
         ),
@@ -2052,11 +2052,10 @@ def tab_app4_ui():
         # 2행
         ui.layout_columns(
             ui.card(ui.card_header("3. 데이터 설명(출처, 데이터명, 비고)"),
-                    ui.div(ui.output_ui("appendix_3"), class_="scroll-body"),
+                    ui.div(ui.output_ui("appendix_3")),   # scroll-body 제거
                     style="height:460px;"),
             ui.card(ui.card_header("4. Feature 4개 지표 산정식"),
-                    # ✅ 변경: 이미지 출력물을 .img-box로 감싸 자동 축소/맞춤
-                    ui.div(ui.div(ui.output_image("appendix_4_img"), class_="img-box"), class_="scroll-body"),
+                    ui.div(ui.output_image("appendix_4_img"), class_="img-box"), # scroll-body 제거
                     style="height:460px;"),
             col_widths=[6,6]
         ),
@@ -2064,15 +2063,14 @@ def tab_app4_ui():
         # 3행
         ui.layout_columns(
             ui.card(ui.card_header("5. 타겟클러스터 선정 기준"),
-                    ui.div(ui.output_ui("appendix_5"), class_="scroll-body"),
+                    ui.div(ui.output_ui("appendix_5")),   # scroll-body 제거
                     style="height:460px;"),
             ui.card(ui.card_header("6. 각 클러스터 별 정책제안 지점 도출 기준"),
-                    ui.div(ui.output_ui("appendix_6"), class_="scroll-body"),
+                    ui.div(ui.output_ui("appendix_6")),   # scroll-body 제거
                     style="height:460px;"),
             col_widths=[6,6]
         ),
     )
-
 # ====== Server ======
 @module.server
 def tab_app4_server(input, output, session):
@@ -2354,14 +2352,14 @@ app_ui = ui.page_fluid(
     ui.div(
         {"class": "page-title"},
         ui.tags.img(src="logo.png", alt="로고", loading="lazy", decoding="async"),
-        ui.h2("대구지역 디지털 금융 취약계층 분석 및 스마트지점 입지추천"),
+        ui.h2("대구지역 시니어 금융 서비스 전략 및 입지 제안"),
     ),
     ui.navset_tab(
-        ui.nav_panel("스마트지점 입지 추천", tab_app1_ui("t1")),
-        ui.nav_panel("교통/복지 스코어", tab_app2_ui("t2")),
+        ui.nav_panel("지점별 서비스 전략 제안", tab_app1_ui("t1")),
+        ui.nav_panel("지점별 교통/복지 스코어 비교", tab_app2_ui("t2")),
         ui.nav_panel("고령인구비율 및 은행 지점당 인구수", tab_app3_ui("t3")),
         ui.nav_panel("부록(기준 및 세부설명)", tab_app4_ui("t4")),
-        id="main_tabs", selected="스마트지점 입지 추천"
+        id="main_tabs", selected="지점별 서비스 전략 제안"
     )
 )
 
