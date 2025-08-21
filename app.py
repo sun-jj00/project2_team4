@@ -152,7 +152,6 @@ def tab_app1_ui():
             ),
             ui.tags.style(".btn-group { display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px; } .color-box { display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: middle; border: 1px solid #ccc; } .shiny-input-checkboxgroup .shiny-input-container { display: flex; flex-direction: column; } .checkbox { display: flex; align-items: center; } .checkbox label { flex-grow: 1; }")
         ),
-        ui.h5("은행 입지 클러스터 대시보드"),
         ui.layout_sidebar(
             ui.sidebar(
                 ui.div(
@@ -889,8 +888,6 @@ def tab_app2_ui():
     .sidebar-card .card-body { width: 90%; margin: 0 auto; }
     """),
 
-    ui.h5("지점 별 스코어 - 대중교통 및 노인복지 인프라"),
-
     ui.navset_tab(
         ui.nav_panel(
             "교통스코어 맵",
@@ -1376,8 +1373,6 @@ def tab_app3_ui():
             setTimeout(function(){ sendVH(true); }, 150);
             })();
     """),
-
-    title="대구시 고령인구비율 및 은행 지점당 인구수"
 )
 
 @module.server
