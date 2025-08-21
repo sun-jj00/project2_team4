@@ -1988,14 +1988,14 @@ def tab_app3_server(input, output, session):
             fig = px.bar(
                 top, x="동", y=disp_col, title=title,
                 labels={"동": "동", disp_col: ylabel},
-                text=top[disp_col].round(1)
+                # text=top[disp_col].round(1)
             )
-            fig.update_traces(textposition="inside")  # 텍스트를 막대 내부에 고정
-            fig.update_traces(
-                insidetextfont=dict(size=BAR_TEXT_SIZE, color="white"),
-                outsidetextfont=dict(size=BAR_TEXT_SIZE, color="#111"),
-            )
-            fig.update_layout(uniformtext_minsize=BAR_TEXT_SIZE-2, uniformtext_mode="hide")
+            # fig.update_traces(textposition="inside")  # 텍스트를 막대 내부에 고정
+            # fig.update_traces(
+            #     insidetextfont=dict(size=BAR_TEXT_SIZE, color="white"),
+            #     outsidetextfont=dict(size=BAR_TEXT_SIZE, color="#111"),
+            # )
+            # fig.update_layout(uniformtext_minsize=BAR_TEXT_SIZE-2, uniformtext_mode="hide")
             fig.update_traces(
                 marker_color=bar_colors,
                 marker_line_color=line_colors,
@@ -2003,7 +2003,7 @@ def tab_app3_server(input, output, session):
             )
             fig.update_traces(
                 hovertemplate="동=%{x}<br>"+ylabel+"=%{y:.1f}"+("%" if is_ratio else "")+"<extra></extra>",
-                texttemplate="%{text:.1f}"+("%" if is_ratio else ""),
+                # texttemplate="%{text:.1f}"+("%" if is_ratio else ""),
                 cliponaxis=False
             )
             fig.update_layout(
