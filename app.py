@@ -173,7 +173,7 @@ def tab_app1_ui():
                         ),
                         "6": ui.span(
                             ui.HTML(f'<span class="color-box" style="background-color: red;"></span> {T1_CLUSTER_NAMES[6]}'),
-                            ui.tooltip(ui.tags.i(class_="bi bi-question-circle-fill ms-2"), ui.HTML("노인복지, 교통 둘다 좋은편<br>고령비율 높음<br>포화도 높음"), placement="right")
+                            ui.tooltip(ui.tags.i(class_="bi bi-question-circle-fill ms-2"), ui.HTML("노인복지, 교통 둘다 좋은편<br>고령비율 높음<br>지점당 인구수 높음"), placement="right")
                         ),
                     },
                     selected=[], inline=False
@@ -226,7 +226,7 @@ def tab_app1_server(input, output, session):
             ui.p(ui.HTML('<b>찾아가는 금융서비스 시행 지점 제안</b><br>취지: 도내 시외지역 및 복지관 이용 어르신들의 금융편의\
 <br>제안: 외곽지역(군위군, 달성군) 지점들을 <span style="background-color: rgba(0,0,255,0.2);">찾아가는 금융서비스</span> 거점으로 선정')),
             ui.h5(T1_CLUSTER_NAMES[5]),
-            ui.p(ui.HTML("<b>시니어 금융코너 확장 전략 실행에 최적</b><br>복지 시너지 강화를 위해, <span style='background-color: rgba(0,128,0,0.2);'>디지털 금융 교육존 및 은행 공동 커뮤니티 센터</span> 등 신규 설립 가능")),
+            ui.p(ui.HTML("<b>시니어 금융코너 확장 전략 실행에 최적</b><br>복지 시너지 강화를 위해, <span style='background-color: rgba(0,128,0,0.2);'>디지털 금융 교육존 및 은행 공동 커뮤니티 센터</span> 등 운영 가능")),
             ui.h5(T1_CLUSTER_NAMES[6]),
             ui.p(ui.HTML("<b>신규 점포 수요 및 시너지, 접근성 우수</b><br><span style='background-color: rgba(255,0,0,0.2);'>'시니어 특화점포 개설'</span>에 가장 최적의 군집으로 선정\
 <br><span style='display: inline-block; width: 12px; height: 12px; background-color: yellow; border-radius: 50%; border: 1px solid #ccc; margin-right: 5px;'></span>대구 시니어특화점포 : iM뱅크 대봉브라보점")),
@@ -1254,7 +1254,7 @@ def tab_app3_ui():
             ),
             ui.div(
                 {"class": "card-box"},
-                ui.div({"class": "card-title"}, "동별 포화도"),
+                ui.div({"class": "card-title"}, "동별 지점당 인구수"),
                 ui.div({"class": "card-divider"}),
                 ui.output_ui("plot_saturation"),
             ),
@@ -1374,7 +1374,7 @@ def tab_app3_ui():
             })();
     """),
 
-    title="대구시 고령인구비율 및 은행 지점별 포화도"
+    title="대구시 고령인구비율 및 은행 지점당 인구수"
 )
 
 @module.server
@@ -2013,7 +2013,7 @@ def tab_app3_server(input, output, session):
         height = max(int((total_for_right - gap_between_cards) / 2), 220)
 
         selected = input.dongs() or []
-        fig = build_plotly_topN("고령인구비율", "동별 고령인구비율", "고령인구비율(%)", height, selected, topn=10)
+        fig = build_plotly_topN("고령인구비율", "동별 고령인구비율", "스코어", height, selected, topn=10)
         html = fig.to_html(full_html=False, include_plotlyjs="inline", config={"responsive": True})
         return ui.HTML(f'<div style="width:100%;height:{height}px;">{html}</div>')
 
@@ -2026,7 +2026,7 @@ def tab_app3_server(input, output, session):
         height = max(int((total_for_right - gap_between_cards) / 2), 220)
 
         selected = input.dongs() or []
-        fig = build_plotly_topN("포화도", "동별 포화도", "포화도(%)", height, selected, topn=10)
+        fig = build_plotly_topN("포화도", "동별 지점당 인구수", "스코어", height, selected, topn=10)
         html = fig.to_html(full_html=False, include_plotlyjs="inline", config={"responsive": True})
         return ui.HTML(f'<div style="width:100%;height:{height}px;">{html}</div>')
 
@@ -2313,17 +2313,17 @@ def tab_app4_server(input, output, session):
 ---
 
 ### 5번 군집
-- **특징:** 복지 시너지 **중간**, 교통 **좋음**, 고령비율 **매우 높음**, **포화도 낮음**  
+- **특징:** 복지 시너지 **중간**, 교통 **좋음**, 고령비율 **매우 높음**, **지점당 인구수 낮음**  
 - **전략 및 근거:** 현 거점 기준 **시니어 금융코너 확장** + **디지털 금융 교육존/공동 커뮤니티** 운영  
-- **기준:** 복지 낮고, 교통 좋고, **포화도 ≤ 2.2**인 지역 타겟  
+- **기준:** 복지 낮고, 교통 좋고, **지점당 인구수 ≤ 2.2**인 지역 타겟  
 - **지점:** *우리은행 대구 3공단(비산 7동)*, *iM뱅크 성명(대명 10동)*
 
 ---
 
 ### 6번 군집
-- **특징:** **복지·교통 우수**, 고령비율 높음, **포화도 높음**  
+- **특징:** **복지·교통 우수**, 고령비율 높음, **지점당 인구수 높음**  
 - **전략 및 근거:** **시니어 특화점포 개설**에 최적 (수요·접근성·복지 시너지 우수)  
-- **기준:** 복지·교통·포화도·고령비율 **동일 가중치**, 상위 **3개** 선정  
+- **기준:** 복지·교통·지점당 인구수·고령비율 **동일 가중치**, 상위 **3개** 선정  
 - **지점:** *iM뱅크 방촌*, *iM뱅크 동구청*, *iM뱅크 달서구청(출)*
             """
         )
@@ -2359,7 +2359,7 @@ app_ui = ui.page_fluid(
     ui.navset_tab(
         ui.nav_panel("스마트지점 입지 추천", tab_app1_ui("t1")),
         ui.nav_panel("교통/복지 스코어", tab_app2_ui("t2")),
-        ui.nav_panel("고령인구비율 및 은행 지점별 포화도", tab_app3_ui("t3")),
+        ui.nav_panel("고령인구비율 및 은행 지점당 인구수", tab_app3_ui("t3")),
         ui.nav_panel("부록(기준 및 세부설명)", tab_app4_ui("t4")),
         id="main_tabs", selected="스마트지점 입지 추천"
     )
