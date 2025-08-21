@@ -1088,7 +1088,7 @@ WWW_DIR.mkdir(exist_ok=True)
 
 # ---------- 파일 경로 ----------
 SHAPE_PATH = "./data/대구_행정동_군위포함.shp"
-CSV_PATH   = "./data/클러스터포함_전체.csv"
+CSV_PATH   = "./data/클러스터포함_전체2.csv"
 
 # ---------- 상수 ----------
 NAN_COLOR       = "#BDBDBD"   # 초기/결측 채움색
