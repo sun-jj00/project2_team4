@@ -340,19 +340,24 @@ def tab_app1_server(input, output, session):
 sns.set_theme(style="whitegrid")
 
 def _set_korean_font():
-    candidates = [
-        "Malgun Gothic",     # Windows
-        "AppleGothic",       # macOS
-        "NanumGothic",       # Linux
-        "Noto Sans CJK KR",  # Google Noto
-        "Noto Sans KR",
-        "DejaVu Sans"
-    ]
-    avail = {f.name for f in font_manager.fontManager.ttflist}
-    for name in candidates:
-        if name in avail:
-            plt.rcParams["font.family"] = name
-            break
+    # www/fonts 폴더에 있는 나눔고딕 폰트 파일 경로
+    font_path = os.path.join(APP_DIR, "www", "fonts", "NanumGothic-Regular.ttf")
+
+    # 폰트가 실제로 있는지 확인
+    if os.path.exists(font_path):
+        # Matplotlib의 폰트 매니저에 폰트 파일 직접 추가
+        font_manager.fontManager.addfont(font_path)
+
+        # Matplotlib의 기본 폰트를 'NanumGothic'으로 설정
+        # 폰트 파일의 이름이 아닌, 폰트 자체의 이름(Family Name)을 사용해야 합니다.
+        plt.rcParams["font.family"] = "NanumGothic"
+    else:
+        # 폰트 파일이 없으면 경고 메시지 출력
+        print(f"경고: 한글 폰트 파일이 다음 경로에 없습니다: {font_path}")
+        # 대체 폰트(시스템 기본) 사용
+        plt.rcParams["font.family"] = "sans-serif"
+
+    # 마이너스 부호가 깨지는 문제 방지
     plt.rcParams["axes.unicode_minus"] = False
 
 _set_korean_font()
