@@ -1461,7 +1461,7 @@ def tab_app3_server(input, output, session):
 
     # 현재 지표에서 값이 있는 동만 허용
     def allowed_dongs_for_metric(metric_name: str) -> list[str]:
-        if metric_name in ["포화도", "고령인구비율"] and metric_name in gdf.columns:
+        if metric_name in ["지점당인구수", "고령인구비율"] and metric_name in gdf.columns:
             s = pd.to_numeric(gdf[metric_name], errors="coerce")
             return sorted(gdf.loc[s.notna(), "동"].unique().tolist())
         return sorted(gdf["동"].dropna().unique().tolist())
@@ -1510,7 +1510,7 @@ def tab_app3_server(input, output, session):
         allowed = allowed_dongs_for_metric(metric)  # 현재 지표에서 값이 있는 동만
 
         # 값이 없는 동을 클릭한 경우 → 알림 후 중단
-        if dong not in allowed and metric in ["포화도", "고령인구비율"] and metric in gdf.columns:
+        if dong not in allowed and metric in ["지점당인구수", "고령인구비율"] and metric in gdf.columns:
             notify(f"'{dong}'에는 '{metric}' 값이 없어 선택할 수 없습니다.", type_="warning", duration_ms=3500)
             return
 
@@ -1523,7 +1523,7 @@ def tab_app3_server(input, output, session):
             selected.add(dong)
 
         # 허용 목록 내에서만 유지 + 원래 순서 보존
-        selected = [d for d in allowed if d in selected] if (metric in ["포화도","고령인구비율"] and metric in gdf.columns) \
+        selected = [d for d in allowed if d in selected] if (metric in ["지점당인구수","고령인구비율"] and metric in gdf.columns) \
                    else [d for d in (sorted(gdf["동"].dropna().unique().tolist())) if d in selected]
 
         try:
@@ -1641,7 +1641,7 @@ def tab_app3_server(input, output, session):
         opacity  = DEFAULT_OPACITY
 
         m = folium.Map(location=[35.8714, 128.6014], zoom_start=11,
-                       tiles="cartodbpositron", width="100%", height="100%")
+                       tiles="openstreetmap", width="100%", height="100%")
 
         folium.GeoJson(
             data=GDF_UNION.__geo_interface__,
@@ -1665,7 +1665,7 @@ def tab_app3_server(input, output, session):
         minx, miny, maxx, maxy = tb_src
         m.fit_bounds([[miny, minx], [maxy, maxx]])
 
-        if len(gsel) > 0 and metric in gsel.columns and metric in ["포화도", "고령인구비율"]:
+        if len(gsel) > 0 and metric in gsel.columns and metric in ["지점당인구수", "고령인구비율"]:
             s = pd.to_numeric(gsel[metric], errors="coerce")
             if s.notna().sum() > 0:
                 bins = compute_bins(s, binmode, k)
@@ -1705,7 +1705,7 @@ def tab_app3_server(input, output, session):
 
                 is_all_selected = bool(selected_list) and (set(selected_list) == set(allowed_all))
 
-                if is_all_selected and metric in ["포화도", "고령인구비율"]:
+                if is_all_selected and metric in ["지점당인구수", "고령인구비율"]:
                     # 중복/NaN 대비: 동별 평균 후 상위 3
                     df_rank = (
                         gsel[["동", metric]].copy()
@@ -1785,7 +1785,7 @@ def tab_app3_server(input, output, session):
                 is_all_selected = bool(selected_list) and (set(selected_list) == set(allowed_all))
 
                 # 3) 라벨 대상으로 사용할 동 이름 목록(target_names) 결정
-                if is_all_selected and metric in ["포화도", "고령인구비율"] and metric in gdf.columns:
+                if is_all_selected and metric in ["지점당인구수", "고령인구비율"] and metric in gdf.columns:
                     # 전체선택이면 지표 기준 상위 TOPN_ALL만
                     df_all = (
                         gdf[gdf["동"].isin(allowed_all)][["동", metric]].copy()
@@ -2096,7 +2096,7 @@ def tab_app3_server(input, output, session):
         height = max(int((total_for_right - gap_between_cards) / 2), 220)
 
         selected = applied.get() or []
-        fig = build_plotly_topN("포화도", "동별 지점당 인구수", "스코어", height, selected, topn=10)
+        fig = build_plotly_topN("지점당인구수", "동별 지점당 인구수", "스코어", height, selected, topn=10)
         html = fig.to_html(full_html=False, include_plotlyjs="inline", config={"responsive": True})
         return ui.HTML(f'<div style="width:100%;height:{height}px;">{html}</div>')
 
