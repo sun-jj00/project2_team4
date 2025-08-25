@@ -1646,7 +1646,7 @@ def tab_app3_server(input, output, session):
         opacity  = DEFAULT_OPACITY
 
         m = folium.Map(location=[35.8714, 128.6014], zoom_start=11,
-                       tiles="openstreetmap", width="100%", height="100%")
+                       tiles="cartodbpositron", width="100%", height="100%")
 
         folium.GeoJson(
             data=GDF_UNION.__geo_interface__,
