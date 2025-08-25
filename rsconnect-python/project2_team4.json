@@ -1,0 +1,12 @@
+{
+    "https://api.shinyapps.io": {
+        "server_url": "https://api.shinyapps.io",
+        "filename": "C:\\Users\\USER\\Documents\\DS Projects\\project2_team4",
+        "app_url": "https://spicywinter.shinyapps.io/pre_project2_team4/",
+        "app_id": "15260848",
+        "app_guid": null,
+        "title": "pre_project2_team4",
+        "app_mode": "python-shiny",
+        "app_store_version": 1
+    }
+}
