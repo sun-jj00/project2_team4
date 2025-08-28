@@ -136,7 +136,7 @@ def T1_make_square_radar(cluster_ids: list[int]) -> go.Figure:
                       angularaxis=dict(direction="clockwise", rotation=90, tickmode="array",
                                        tickvals=angles, ticktext=T1_METRICS), gridshape="linear")
     fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5,
-                                  traceorder="grouped"), margin=dict(l=0,r=150,t=50,b=100), height=480,
+                                  traceorder="grouped"), margin=dict(l=150,r=150,t=50,b=100),
                      paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="black"))
     return fig
 
@@ -144,6 +144,32 @@ def T1_make_square_radar(cluster_ids: list[int]) -> go.Figure:
 def tab_app1_ui():
     return ui.page_fluid(
         ui.tags.style(GLOBAL_CSS),
+        ui.tags.style("""
+            /* ---- Tab1 전용: 카드가 내부를 꽉 채우도록 ---- */
+            #tab1-root .fill-card{display:flex;flex-direction:column;}
+            #tab1-root .fill-card .card-body{flex:1;display:flex;padding:0;min-height:0;}
+            #tab1-root .fill-card .card-body .fill{flex:1;display:flex;min-height:0;}
+            #tab1-root .fill-card .card-body .fill > *{flex:1;width:100%;height:100%;min-height:0;}
+
+            /* Folium/Leaflet/iframe 100% */
+            #tab1-root .fill-card .folium-map,
+            #tab1-root .fill-card .leaflet-container,
+            #tab1-root .fill-card iframe{width:100% !important;height:100% !important;}
+
+            /* Plotly 100% */
+            #tab1-root .fill-card .js-plotly-plot,
+            #tab1-root .fill-card .widget-container,
+            #tab1-root .fill-card .plotly{width:100% !important;height:100% !important;}
+
+            /* 표는 카드 안에서 스크롤 */
+            #tab1-root .fill-card .card-body{overflow:auto;}
+            #tab1-root .fill-card .card-body .fill .dataframe,
+            #tab1-root .fill-card .card-body .fill table {
+                width: 100% !important;
+                max-width: 100% !important;
+                table-layout: fixed;  /* 필요시: 열 너비 균등 */
+            }
+            """),
         # Bootstrap Icons (아이콘)
         ui.head_content(
             ui.tags.link(
@@ -189,23 +215,28 @@ def tab_app1_ui():
                 ui.input_action_button("show_policy", "정책 설명", class_="btn-sm btn-info w-100 mt-2"),
                 width="350px", open="always"
             ),
-            ui.div(
+            ui.div({"id": "tab1-root"}, 
                 ui.row(
                     ui.column(7,
-                        ui.card(ui.card_header("은행 지점 지도"), ui.output_ui("map_widget"), style="height: 60vh;")
-                    ),
-                    ui.column(5,
-                        ui.card(
-                            ui.card_header("특징 비교"),
-                            output_widget("radar_chart"),
+                        ui.card({"class": "fill-card"},
+                            ui.card_header("은행 지점 지도"),
+                            ui.div({"class": "fill"}, ui.output_ui("map_widget")),
                             style="height: 60vh;"
                         )
-                    )
+                    ),
+                    ui.column(5,
+                        ui.card({"class": "fill-card"},
+                            ui.card_header("특징 비교"),
+                            ui.div({"class": "fill"}, output_widget("radar_chart")),
+                            style="height: 60vh;"
+                        )
+                    ),
                 ),
-                ui.card(
+                ui.card({"class": "fill-card"},
                     ui.card_header("데이터 테이블", ui.download_button("download_csv", "CSV 저장",
                                         class_="btn-sm btn-outline-primary float-end")),
-                    ui.output_data_frame("data_table")
+                    ui.div({"class": "fill"}, ui.output_data_frame("data_table")),
+                    style="height: 45vh;"  # 표 카드도 높이 지정(필요 시 값 조절)
                 ),
                 ui.download_button("download_map", "지도 저장 (HTML)", class_="btn-primary w-100 mt-3")
             )
@@ -275,7 +306,7 @@ def tab_app1_server(input, output, session):
     @render.ui
     def map_widget():
         map_data = T1_filtered_df_full()
-        _map = folium.Map(location=[35.8714, 128.6014], zoom_start=11, tiles="cartodbpositron")
+        _map = folium.Map(location=[35.8714, 128.6014], zoom_start=11, tiles="cartodbpositron", width="100%", height="100%")
         if T1_BOUNDARY:
             tooltip = folium.GeoJsonTooltip(fields=['ADM_DR_NM'], aliases=[''],
                                     style=('background-color: white; color: black; font-family: sans-serif; font-size: 10px; padding: 5px;'))
