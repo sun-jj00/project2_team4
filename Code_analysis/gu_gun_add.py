@@ -1,6 +1,7 @@
 import re
 import pandas as pd
 from pathlib import Path
+import os
 
 # ===== 파일 경로 =====
 SUBWAY_CSV = "./data/대구_지하철_주소_좌표추가.csv"
@@ -8,6 +9,11 @@ BANK_CSV = "./data/대구은행_지점_위경도.csv"
 SENIOR_POP_CSV = "./data/대구광역시 202507 동별 고령 인구현황.csv"  # columns: 동, 전체인구, 65세이상인구
 SENIOR_CENTER_CSV = "./data/대구광역시_경로당_20231231.csv"  # columns: 경로당명, 주소, 동, (optional 위도,경도)
 BUS_STOP_CSV = "./data/대구광역시_시내버스 정류소 위치정보_20240924.csv"  # columns: 정류소명, 동, 경도, 위도
+LARGE_STORE_CSV = "./temp/대구광역시_대규모점포_위경도_변환완료.csv"
+
+print(os.getcwd())
+os.chdir("..")  # 상위 디렉토리로 이동
+os.chdir("Project2_team4")  # 상위 디렉토리로 이동
 
 # ===== 유틸: 인코딩 안전하게 CSV 읽기 =====
 def load_csv_safe(path):
@@ -17,6 +23,12 @@ def load_csv_safe(path):
         except Exception:
             continue
     raise ValueError(f"CSV 로드 실패: {path} (인코딩 확인 필요)")
+
+def load_excel_safe(path):
+    try:
+        return pd.read_excel(LARGE_STORE_CSV)
+    except Exception:
+        raise ValueError(f"Excel 로드 실패: {path}")
 
 # 1) '대구광역시', '대구시', '대구' 토큰을 먼저 제거
 CITY_STRIP = re.compile(r'(?:^|\s)(대구광역시|대구시|대구)(?=\s)')
@@ -56,7 +68,7 @@ def extract_gu_dong(address: str):
 
     return (gu, dong)
 
-def add_gu_dong_columns(df: pd.DataFrame, addr_col_candidates=("주소", "address", "도로명주소", "지번주소")):
+def add_gu_dong_columns(df: pd.DataFrame, addr_col_candidates=("주소", "address", "도로명주소", "지번주소", "소재지전체주소")):
     """주소 칼럼을 찾아 구/군, 동을 추가. 기존 '동'이 있으면 비어있는 값만 보충."""
     addr_col = next((c for c in addr_col_candidates if c in df.columns), None)
     if addr_col is None:
@@ -119,3 +131,9 @@ bus_stop = load_csv_safe(BUS_STOP_CSV)
 if "구군" not in bus_stop.columns:
     bus_stop["구군"] = pd.NA  # 필요 시 동->구군 매핑 dict로 보완
 save_csv_excel_safe(bus_stop, "./out/대구_버스정류장_구군빈칸.csv")
+
+large_store = load_csv_safe(LARGE_STORE_CSV)
+large_store_enriched, addr_col = add_gu_dong_columns(large_store)
+print(f"[지하철] 주소칼럼: {addr_col}, 추출결측(구군/동):",
+      large_store_enriched['구군'].isna().sum(), large_store_enriched['동'].isna().sum())
+save_csv_excel_safe(large_store_enriched, "./temp/대구광역시_대규모점포_위경도_구군동추가_변환완료.csv")
