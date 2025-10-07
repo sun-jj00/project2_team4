@@ -52,6 +52,7 @@ GLOBAL_CSS = """
 # ---- Data load (T1_) ----
 try:
     T1_DF = pd.read_csv('./data/클러스터포함_전체.csv', encoding='utf-8-sig')
+    T1_DF_2 = pd.read_csv('./data/2차_추가분석_타겟클러스터.csv', encoding='utf-8-sig')
 except UnicodeDecodeError:
     T1_DF = pd.read_csv('./data/클러스터포함_전체.csv', encoding='cp949')
 
@@ -63,8 +64,19 @@ except Exception as e:
     print(f"[Tab1] GeoJSON load failed: {e}")
     T1_BOUNDARY = None
 
-T1_DF['은행id'] = pd.to_numeric(T1_DF.get('은행id'), errors='coerce')
-T1_DF['정책제안클러스터'] = pd.to_numeric(T1_DF.get('정책제안클러스터'), errors='coerce')
+# 새로 추가된 열만 추출
+extra_cols = [
+    "포화도", "고령유동총합_500m", "고령유동밀집도",
+    "유동인구스코어", "인프라성숙도"
+]
+
+T1_MERGED = pd.merge(T1_DF, T1_DF_2[["은행id"] + extra_cols], on="은행id", how="left")
+T1_MERGED
+
+T1_MERGED['은행id'] = pd.to_numeric(T1_MERGED.get('은행id'), errors='coerce')
+T1_MERGED['정책제안클러스터'] = pd.to_numeric(T1_MERGED.get('정책제안클러스터'), errors='coerce')
+
+T1_MERGED = T1_MERGED.rename(columns={"인프라성숙도" : "인프라스코어"})
 
 T1_CLUSTER_NAMES = {
     0: "교통·복지 취약 고령지역 지점",
@@ -77,13 +89,13 @@ T1_CLUSTER_COLORS = {
     6: {'line': 'red',   'fill': 'rgba(255, 0, 0, 0.1)'}
 }
 
-T1_METRICS = ["교통스코어", "복지스코어", "고령인구비율", "지점당인구수"]
+T1_METRICS = ["교통스코어", "복지스코어", "유동인구스코어", "지점당인구수", "인프라스코어"]
 for _c in T1_METRICS:
-    T1_DF[_c] = pd.to_numeric(T1_DF.get(_c), errors='coerce')
+    T1_MERGED[_c] = pd.to_numeric(T1_MERGED.get(_c), errors='coerce')
 
 T1_QUARTILES: dict[str, dict[str, float]] = {}
 for _m in T1_METRICS:
-    _s = T1_DF[_m].dropna().astype(float).values
+    _s = T1_MERGED[_m].dropna().astype(float).values
     if len(_s) == 0:
         T1_QUARTILES[_m] = {"Q1": 0.0, "Q2": 0.0, "Q3": 1.0}
         continue
@@ -96,7 +108,7 @@ T1_Q1_BAR = float(np.mean([T1_QUARTILES[m]["Q1"]/T1_QUARTILES[m]["Q3"] for m in 
 T1_Q2_BAR = float(np.mean([T1_QUARTILES[m]["Q2"]/T1_QUARTILES[m]["Q3"] for m in T1_METRICS]))
 T1_Q3_BAR = 1.0
 
-T1_CLUSTER_MEANS = T1_DF.groupby('클러스터')[T1_METRICS].mean(numeric_only=True)
+T1_CLUSTER_MEANS = T1_MERGED.groupby('클러스터')[T1_METRICS].mean(numeric_only=True)
 
 def T1_normalize_row_to_q3(row: pd.Series) -> list[float]:
     vals: list[float] = []
@@ -287,7 +299,7 @@ def tab_app1_server(input, output, session):
     # === 데이터 필터링 로직 수정 ===
     @reactive.Calc
     def T1_filtered_df_full():
-        base_df = T1_DF[T1_DF['클러스터'].isin([0,5,6])]
+        base_df = T1_MERGED[T1_MERGED['클러스터'].isin([0,5,6])]
         
         # input.selected_clusters() 대신 applied_selected_clusters.get() 사용
         current_selection = applied_selected_clusters.get()
@@ -295,7 +307,7 @@ def tab_app1_server(input, output, session):
             return base_df
         
         selected = [int(c) for c in current_selection]
-        filtered = T1_DF[T1_DF['클러스터'].isin(selected)].copy()
+        filtered = T1_MERGED[T1_MERGED['클러스터'].isin(selected)].copy()
         
         if input.policy_switch():
             filtered = filtered[filtered['정책제안클러스터'] == filtered['클러스터']]
