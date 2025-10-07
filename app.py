@@ -1454,6 +1454,7 @@ WWW_DIR.mkdir(exist_ok=True)
 # ---------- 파일 경로 ----------
 SHAPE_PATH = "./data/대구_행정동_군위포함.shp"
 CSV_PATH   = "./data/클러스터포함_전체2.csv"
+CSV_PATH_2 = "./data/2차_추가분석_타겟클러스터.csv"
 
 # ---------- 상수 ----------
 NAN_COLOR       = "#BDBDBD"   # 초기/결측 채움색
@@ -1557,15 +1558,25 @@ def read_metrics(path: str) -> pd.DataFrame:
     return m
 
 metrics = read_metrics(CSV_PATH)
-gdf = gdf.merge(metrics, on="동", how="left")
+metrics2 = read_metrics(CSV_PATH_2)
 
+extra_cols_tab3 = [
+    "고령유동총합_500m", "고령유동밀집도",
+    "유동인구스코어", "인프라성숙도"
+]
+
+metrics = metrics.merge(metrics2[["은행id"] + extra_cols_tab3], on="은행id", how="left")
+gdf = gdf.merge(metrics, on="동", how="left")
+gdf.loc[33]
 # ---------- UI ----------
 all_dongs = sorted(gdf["동"].dropna().unique().tolist())
 gdf['지점당인구수'] = gdf['포화도']
-available_metrics = [c for c in ["지점당인구수", "고령인구비율"] if c in gdf.columns]
+available_metrics = [c for c in ["지점당인구수", "고령인구비율", "고령유동밀집도"] if c in gdf.columns]
 metric_choices = ["(없음)"] + available_metrics
 default_metric = "지점당인구수" if "지점당인구수" in available_metrics else (
-    "고령인구비율" if "고령인구비율" in available_metrics else "(없음)"
+    "고령인구비율" if "고령인구비율" in available_metrics else (
+        "고령유동밀집도" if "고령유동밀집도" in available_metrics else "(없음)"
+    )
 )
 
 @module.ui
@@ -1623,6 +1634,12 @@ def tab_app3_ui():
                 ui.div({"class": "card-title"}, "동별 지점당 인구수"),
                 ui.div({"class": "card-divider"}),
                 ui.output_ui("plot_saturation"),
+            ),
+            ui.div(
+                {"class": "card-box"},
+                ui.div({"class": "card-title"}, "동별 고령유동인구 밀집도"),
+                ui.div({"class": "card-divider"}),
+                ui.output_ui("plot_elderly_flow"),
             ),
         ),
         col_widths=[6, 6]
@@ -1775,7 +1792,7 @@ def tab_app3_server(input, output, session):
 
     # 현재 지표에서 값이 있는 동만 허용
     def allowed_dongs_for_metric(metric_name: str) -> list[str]:
-        if metric_name in ["지점당인구수", "고령인구비율"] and metric_name in gdf.columns:
+        if metric_name in ["지점당인구수", "고령인구비율", "고령유동밀집도"] and metric_name in gdf.columns:
             s = pd.to_numeric(gdf[metric_name], errors="coerce")
             return sorted(gdf.loc[s.notna(), "동"].unique().tolist())
         return sorted(gdf["동"].dropna().unique().tolist())
@@ -1824,7 +1841,7 @@ def tab_app3_server(input, output, session):
         allowed = allowed_dongs_for_metric(metric)  # 현재 지표에서 값이 있는 동만
 
         # 값이 없는 동을 클릭한 경우 → 알림 후 중단
-        if dong not in allowed and metric in ["지점당인구수", "고령인구비율"] and metric in gdf.columns:
+        if dong not in allowed and metric in ["지점당인구수", "고령인구비율", "고령유동밀집도"] and metric in gdf.columns:
             notify(f"'{dong}'에는 '{metric}' 값이 없어 선택할 수 없습니다.", type_="warning", duration_ms=3500)
             return
 
@@ -1943,7 +1960,7 @@ def tab_app3_server(input, output, session):
         # CSS max()로 최소 높이 보장 + 뷰포트 비율 적용
         return ui.div(
             {"id": "map_container",
-            "style": f"height: max({MIN_MAP_HEIGHT}px, calc(var(--vh, 1vh) * {pct}));"},
+            "style": f"height: 95%;"},
             ui.output_ui("map_html")
     )
     # -------- 지도 생성 (folium → srcdoc) --------
@@ -1979,7 +1996,7 @@ def tab_app3_server(input, output, session):
         minx, miny, maxx, maxy = tb_src
         m.fit_bounds([[miny, minx], [maxy, maxx]])
 
-        if len(gsel) > 0 and metric in gsel.columns and metric in ["지점당인구수", "고령인구비율"]:
+        if len(gsel) > 0 and metric in gsel.columns and metric in ["지점당인구수", "고령인구비율", "고령유동밀집도"]:
             s = pd.to_numeric(gsel[metric], errors="coerce")
             if s.notna().sum() > 0:
                 bins = compute_bins(s, binmode, k)
@@ -2019,7 +2036,7 @@ def tab_app3_server(input, output, session):
 
                 is_all_selected = bool(selected_list) and (set(selected_list) == set(allowed_all))
 
-                if is_all_selected and metric in ["지점당인구수", "고령인구비율"]:
+                if is_all_selected and metric in ["지점당인구수", "고령인구비율", "고령유동밀집도"]:
                     # 중복/NaN 대비: 동별 평균 후 상위 3
                     df_rank = (
                         gsel[["동", metric]].copy()
@@ -2099,7 +2116,7 @@ def tab_app3_server(input, output, session):
                 is_all_selected = bool(selected_list) and (set(selected_list) == set(allowed_all))
 
                 # 3) 라벨 대상으로 사용할 동 이름 목록(target_names) 결정
-                if is_all_selected and metric in ["지점당인구수", "고령인구비율"] and metric in gdf.columns:
+                if is_all_selected and metric in ["지점당인구수", "고령인구비율", "고령유동밀집도"] and metric in gdf.columns:
                     # 전체선택이면 지표 기준 상위 TOPN_ALL만
                     df_all = (
                         gdf[gdf["동"].isin(allowed_all)][["동", metric]].copy()
@@ -2270,74 +2287,67 @@ def tab_app3_server(input, output, session):
         return ui.HTML(build_map_html(selected))
 
     # -------- Plotly: 세로 막대 Top10 (동적 높이) --------
-    def build_plotly_topN(metric_col: str, title_prefix: str, ylabel: str, height_px: int, selected: list[str], topn: int = 10):
+    def build_plotly_topN(metric_col: str, title_prefix: str, ylabel: str,
+                        height_px: int, selected: list[str], topn: int = 10,
+                        top_highlight: int = 3):  # ← 새 인자 추가
         try:
-            # ---------- 상수 ----------
-            BAR_TEXT_SIZE = 18  # 막대 내부 수치 글자 크기
+            BAR_TEXT_SIZE = 18
+
+            # === 1) 유효성 검사 ===
             if metric_col not in gdf.columns:
                 fig = go.Figure()
                 fig.update_layout(
                     title=f"'{metric_col}' 컬럼이 없습니다.",
-                    height=height_px, margin=dict(l=10, r=10, t=48, b=10),
+                    height=height_px,
+                    margin=dict(l=10, r=10, t=48, b=10),
                     font=dict(family="Malgun Gothic, AppleGothic, NanumGothic, Noto Sans KR, Arial")
                 )
                 return fig
 
+            # === 2) 데이터 준비 ===
             geo = gdf[["동", metric_col]].copy()
             geo[metric_col] = pd.to_numeric(geo[metric_col], errors="coerce")
-            geo = geo.dropna(subset=[metric_col])
 
-            # ▼ 선택된 동만 사용 (선택이 없으면 전체)
             if selected:
                 geo = geo[geo["동"].isin(selected)]
+            geo = geo.dropna(subset=[metric_col])
 
             if geo.empty:
-                msg = "선택된 동에 유효한 데이터가 없습니다." if selected else "유효한 데이터가 없습니다."
+                msg = f"선택된 동에 '{metric_col}' 값이 없습니다."
                 fig = go.Figure()
                 fig.update_layout(
                     title=msg,
-                    height=height_px, margin=dict(l=10, r=10, t=48, b=10),
+                    height=height_px,
+                    margin=dict(l=10, r=10, t=48, b=10),
                     font=dict(family="Malgun Gothic, AppleGothic, NanumGothic, Noto Sans KR, Arial")
                 )
                 return fig
 
-            # 동 이름 중복 대비 → 평균 집계
+            # === 3) 평균 및 정렬 ===
             geo = geo.groupby("동", as_index=False)[metric_col].mean()
 
-            # 0~1.5면 비율 판단 → % 표시
             s = geo[metric_col]
             is_ratio = (s.min() >= 0) and (s.max() <= 1.5)
             scale = 100.0 if is_ratio else 1.0
             disp_col = f"{metric_col}__disp"
             geo[disp_col] = s * scale
 
-            # 상위 N만 남기기
             geo = geo.sort_values(disp_col, ascending=False)
             N = min(topn, len(geo))
             top = geo.head(N).reset_index(drop=True)
 
-            # --- 전체 선택 여부 판단(해당 지표 기준) ---
-            try:
-                allowed_all = allowed_dongs_for_metric(metric_col)  # 현재 지표에서 유효한 전체 동
-            except Exception:
-                allowed_all = sorted(gdf["동"].dropna().unique().tolist())
-
-            is_all_selected = bool(selected) and (set(selected) == set(allowed_all))
-            is_none_selected = not selected
-
-            highlight = is_all_selected or is_none_selected  # ⬅️ 두 경우 모두 강조
-            TOP_HILITE = min(3, len(top))  # 데이터가 3 미만이면 있는 만큼만
-
-            # 막대 색/외곽선 구성
+            # === 4) 색상 세팅 ===
             DEFAULT_BAR = "#636EFA"
             HILITE_FILL = "#e53935"
             HILITE_LINE = "#b71c1c"
 
-            bar_colors = []
-            line_colors = []
-            line_widths = []
+            bar_colors, line_colors, line_widths = [], [], []
+
+            # ✅ 강조 개수가 top_highlight보다 작으면 강조하지 않음
+            enable_highlight = len(top) >= top_highlight
+
             for i in range(len(top)):
-                if highlight and i < TOP_HILITE:
+                if enable_highlight and i < top_highlight:
                     bar_colors.append(HILITE_FILL)
                     line_colors.append(HILITE_LINE)
                     line_widths.append(2.0)
@@ -2346,31 +2356,22 @@ def tab_app3_server(input, output, session):
                     line_colors.append("rgba(0,0,0,0)")
                     line_widths.append(0)
 
-            # 동적 제목
+            # === 5) 제목 ===
             if selected:
                 title = f"{title_prefix} (선택 {len(set(selected))}개 중 상위 {N})"
             else:
                 title = f"{title_prefix} (전체 중 상위 {N})"
 
+            # === 6) 그래프 생성 ===
             fig = px.bar(
                 top, x="동", y=disp_col, title=title,
                 labels={"동": "동", disp_col: ylabel},
-                # text=top[disp_col].round(1)
             )
-            # fig.update_traces(textposition="inside")  # 텍스트를 막대 내부에 고정
-            # fig.update_traces(
-            #     insidetextfont=dict(size=BAR_TEXT_SIZE, color="white"),
-            #     outsidetextfont=dict(size=BAR_TEXT_SIZE, color="#111"),
-            # )
-            # fig.update_layout(uniformtext_minsize=BAR_TEXT_SIZE-2, uniformtext_mode="hide")
             fig.update_traces(
                 marker_color=bar_colors,
                 marker_line_color=line_colors,
                 marker_line_width=line_widths,
-            )
-            fig.update_traces(
-                hovertemplate="동=%{x}<br>"+ylabel+"=%{y:.1f}"+("%" if is_ratio else "")+"<extra></extra>",
-                # texttemplate="%{text:.1f}"+("%" if is_ratio else ""),
+                hovertemplate="동=%{x}<br>" + ylabel + "=%{y:.1f}" + ("%" if is_ratio else "") + "<extra></extra>",
                 cliponaxis=False
             )
             fig.update_layout(
@@ -2384,8 +2385,11 @@ def tab_app3_server(input, output, session):
 
         except Exception as e:
             fig = go.Figure()
-            fig.update_layout(title=f"그래프 오류: {e}",
-                            height=height_px, margin=dict(l=10, r=10, t=48, b=10))
+            fig.update_layout(
+                title=f"그래프 오류: {e}",
+                height=height_px,
+                margin=dict(l=10, r=10, t=48, b=10)
+            )
             return fig
 
     @output
@@ -2394,10 +2398,10 @@ def tab_app3_server(input, output, session):
         map_h = map_height_safe()
         gap_between_cards = 12
         total_for_right = max(map_h - RIGHT_TRIM_PX, 0) if 'RIGHT_TRIM_PX' in globals() else map_h
-        height = max(int((total_for_right - gap_between_cards) / 2), 220)
+        height = max(int((total_for_right - gap_between_cards) / 3), 220)
 
         selected = applied.get() or []     # ⬅️ 변경
-        fig = build_plotly_topN("고령인구비율", "동별 고령인구비율", "고령인구비율(%)", height, selected, topn=10)
+        fig = build_plotly_topN("고령인구비율", "동별 고령인구비율", "고령인구비율(%)", height, selected, topn=10, top_highlight=3)
         html = fig.to_html(full_html=False, include_plotlyjs="inline", config={"responsive": True})
         return ui.HTML(f'<div style="width:100%;height:{height}px;">{html}</div>')
 
@@ -2407,10 +2411,23 @@ def tab_app3_server(input, output, session):
         map_h = map_height_safe()
         gap_between_cards = 12
         total_for_right = max(map_h - RIGHT_TRIM_PX, 0) if 'RIGHT_TRIM_PX' in globals() else map_h
-        height = max(int((total_for_right - gap_between_cards) / 2), 220)
+        height = max(int((total_for_right - gap_between_cards) / 3), 220)
 
         selected = applied.get() or []
-        fig = build_plotly_topN("지점당인구수", "동별 지점당 인구수", "스코어", height, selected, topn=10)
+        fig = build_plotly_topN("지점당인구수", "동별 지점당 인구수", "스코어", height, selected, topn=10, top_highlight=3)
+        html = fig.to_html(full_html=False, include_plotlyjs="inline", config={"responsive": True})
+        return ui.HTML(f'<div style="width:100%;height:{height}px;">{html}</div>')
+    
+    @output
+    @render.ui
+    def plot_elderly_flow():
+        map_h = map_height_safe()
+        gap_between_cards = 12
+        total_for_right = max(map_h - RIGHT_TRIM_PX, 0) if 'RIGHT_TRIM_PX' in globals() else map_h
+        height = max(int((total_for_right - gap_between_cards) / 3), 220)
+
+        selected = applied.get() or []
+        fig = build_plotly_topN("고령유동밀집도", "고령유동인구 밀집도", "스코어", height, selected, topn=10, top_highlight=3)
         html = fig.to_html(full_html=False, include_plotlyjs="inline", config={"responsive": True})
         return ui.HTML(f'<div style="width:100%;height:{height}px;">{html}</div>')
 
@@ -2736,7 +2753,7 @@ app_ui = ui.page_fluid(
     ),
     ui.navset_tab(
         ui.nav_panel("지점별 서비스 전략 제안", tab_app1_ui("t1")),
-        ui.nav_panel("지점별 교통/복지 스코어 비교", tab_app2_ui("t2")),
+        ui.nav_panel("지점별 교통/복지/인프라 스코어 비교", tab_app2_ui("t2")),
         ui.nav_panel("고령인구비율 및 은행 지점당 인구수", tab_app3_ui("t3")),
         ui.nav_panel("부록(기준 및 세부설명)", tab_app4_ui("t4")),
         id="main_tabs", selected="지점별 서비스 전략 제안"
