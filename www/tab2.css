@@ -2,7 +2,7 @@
 /* [id$="-some_button"] { ... } */
 /* .t2 .card-box { ... } */
 
-[id$='apply_t'], [id$='apply_w']{
+[id$='apply_t'], [id$='apply_w'], [id$='apply_i']{
     padding: 8px 14px;
     border-radius: 8px;
     font-weight: 600;
@@ -14,7 +14,7 @@
     width: 100% !important;
 }
 
-[id$='btn_explain_t'], [id$='btn_explain_w'] {
+[id$='btn_explain_t'], [id$='btn_explain_w'], [id$='btn_explain_i'] {
     padding: 8px 14px;
     border-radius: 8px;
     font-weight: 600;

@@ -413,6 +413,9 @@ SENIOR_CENTER_FILE  = "./data/노인복지센터.csv"
 SENIOR_HALL_FILE    = "./data/대구_경로당_구군동추가.csv"
 BUS_FILE            = "./data/대구_버스정류소_필터.csv"
 SUBWAY_FILE         = "./data/대구_지하철_주소_좌표추가.csv"
+HOSPITAL_FILE       = "./data/대구광역시_의료기관_현황_20250917_위경도추가_결측지제거_컬럼제거.csv"
+PHARMACY_FILE       = "./data/대구광역시_약국현황_20250917.csv"
+MARKET_FILE         = "./data/대구광역시_대규모점포_위경도_구군동추가_변환완료.csv"
 
 # 시각화 파라미터
 CENTER_DAEGU = (35.8714, 128.6014)
@@ -625,6 +628,9 @@ centers = read_csv_safe(SENIOR_CENTER_FILE)
 halls   = read_csv_safe(SENIOR_HALL_FILE)
 bus_df  = read_csv_safe(BUS_FILE)
 sub_df  = read_csv_safe(SUBWAY_FILE)
+has_df  = read_csv_safe(HOSPITAL_FILE)
+pha_df  = read_csv_safe(PHARMACY_FILE)
+mark_df  = read_csv_safe(MARKET_FILE)
 
 for d in (banks, centers, halls, bus_df, sub_df):
     d.columns = d.columns.map(lambda x: x.strip() if isinstance(x, str) else x)
@@ -932,6 +938,175 @@ def build_traffic_map(only_within: bool, pct_range: tuple[int, int]) -> folium.M
     _add_corner_legend_transport(m)
     return m
 
+def build_infra_map(only_within: bool, pct_range: tuple[int, int]) -> folium.Map:
+    m = folium.Map(
+        location=pick_coords_center(banks, b_lat, b_lon),
+        zoom_start=12, tiles="CartoDB positron",
+        height=492, width="100%"
+    )
+
+    # =========================================
+    # ① 인프라 스코어 계산 (복지+교통 평균)
+    # =========================================
+    if "인프라스코어" not in banks.columns:
+        banks["인프라스코어"] = (banks[b_wsc].fillna(0) + banks[b_tsc].fillna(0)) / 2
+
+    banks_f = percentile_filter(banks, "인프라스코어", pct_range[0], pct_range[1])
+    vmin_i, vmax_i = series_minmax_num(banks["인프라스코어"])
+    infra_cm = LinearColormap(colors=YLORRD, vmin=vmin_i, vmax=vmax_i)
+
+    # =========================================
+    # ② FeatureGroup 정의
+    # =========================================
+    fg_r500 = folium.FeatureGroup(name="반경 500m", show=False)
+    fg_banks = folium.FeatureGroup(name="은행 지점", show=True)
+    fg_hosp  = folium.FeatureGroup(name="의료기관", show=False)
+    fg_phar  = folium.FeatureGroup(name="약국", show=False)
+    fg_mark  = folium.FeatureGroup(name="대규모점포", show=False)
+    cluster  = MarkerCluster(name="클러스터(인프라 IR)", show=False,
+                             options={"spiderfyOnMaxZoom": True, "disableClusteringAtZoom": 16})
+
+    # =========================================
+    # ③ 은행 지점 (중심)
+    # =========================================
+    for _, row in banks_f.iterrows():
+        lat, lon = float(row[b_lat]), float(row[b_lon])
+        val = float(row["인프라스코어"])
+        color = ir_color(infra_cm, val, vmin_i, vmax_i, reverse=IR_REVERSE)
+        alpha = 0.65 + 0.30 * ((val - vmin_i) / (vmax_i - vmin_i + 1e-12))
+
+        bank_name = (str(row.get(b_bank)) if b_bank and pd.notna(row.get(b_bank)) else "-")
+        branch    = (str(row.get(b_br))   if b_br   and pd.notna(row.get(b_br))   else "-")
+        addr      = (str(row.get(b_addr)) if b_addr and pd.notna(row.get(b_addr)) else "-")
+
+        tooltip_html = f"""
+        <div style="font-size:12px;">
+          <b>은행</b>: {bank_name}<br>
+          <b>지점명</b>: {branch}<br>
+          <b>인프라스코어</b>: {val:.3f}<br>
+          <b>복지스코어</b>: {row.get(b_wsc, '-')}<br>
+          <b>교통스코어</b>: {row.get(b_tsc, '-')}<br>
+          <hr style='margin:4px 0;'>
+          <b>주소</b>: {addr}
+        </div>
+        """
+
+        # 반경 500m 링
+        folium.Circle(
+            location=(lat, lon), radius=H500_M,
+            color="rgba(30,144,255,0.8)", weight=1,
+            fill=True, fill_color="rgba(30,144,255,0.5)", fill_opacity=0.06,
+            tooltip=folium.Tooltip(tooltip_html, sticky=False), opacity=0.9
+        ).add_to(fg_r500)
+
+        # 메인 은행 마커(글로우 3중)
+        folium.CircleMarker(location=(lat, lon), radius=RADIUS_BANK*2.6,
+                            color=None, weight=0, fill=True,
+                            fill_color=color, fill_opacity=0.18).add_to(fg_banks)
+        folium.CircleMarker(location=(lat, lon), radius=RADIUS_BANK*1.6,
+                            color=None, weight=0, fill=True,
+                            fill_color=color, fill_opacity=0.28).add_to(fg_banks)
+        folium.CircleMarker(location=(lat, lon), radius=RADIUS_BANK,
+                            color=color, weight=2, fill=True, fill_color=color,
+                            fill_opacity=alpha,
+                            tooltip=folium.Tooltip(tooltip_html, sticky=False)
+        ).add_to(fg_banks)
+
+        # 은행 아이콘 (🏦)
+        folium.Marker(
+            location=(lat, lon),
+            tooltip=folium.Tooltip(tooltip_html, sticky=False),
+            icon=folium.DivIcon(html="<div style='font-size:18px; line-height:18px;'>🏦</div>",
+                                class_name="bank-emoji")
+        ).add_to(cluster)
+
+    banks_xy = (banks_f[b_lat].to_numpy(), banks_f[b_lon].to_numpy())
+
+    # =========================================
+    # ④ 주변 인프라 레이어
+    # =========================================
+    # 병원 (빨강)
+    h_lat = find_col(has_df, LAT_CANDS)
+    h_lon = find_col(has_df, LON_CANDS)
+    hospitals_plot = filter_points_within_radius(has_df, h_lat, h_lon, banks_xy) if only_within else has_df
+    for _, r in hospitals_plot.iterrows():
+        tooltip = f"<b>의료기관</b><br>{r.get('기관명','-')}<br>{r.get('주소','-')}"
+        folium.CircleMarker(
+            (r[h_lat], r[h_lon]),
+            radius=RADIUS_INFRA,
+            color="rgba(180,0,0,0.8)", weight=1,
+            fill=True, fill_color="rgba(220,0,0,0.6)", fill_opacity=OP_FILL_INFRA,
+            tooltip=folium.Tooltip(tooltip, sticky=False)
+        ).add_to(fg_hosp)
+
+    # 약국 (보라)
+    p_lat = find_col(pha_df, LAT_CANDS)
+    p_lon = find_col(pha_df, LON_CANDS)
+    pharmacy_plot = filter_points_within_radius(pha_df, p_lat, p_lon, banks_xy) if only_within else pha_df
+    for _, r in pharmacy_plot.iterrows():
+        tooltip = f"<b>약국</b><br>{r.get('약국명','-')}<br>{r.get('주소','-')}"
+        folium.CircleMarker(
+            (r[p_lat], r[p_lon]),
+            radius=RADIUS_INFRA,
+            color="rgba(128,0,128,0.75)", weight=1,
+            fill=True, fill_color="rgba(186,85,211,0.55)", fill_opacity=OP_FILL_INFRA,
+            tooltip=folium.Tooltip(tooltip, sticky=False)
+        ).add_to(fg_phar)
+
+    # 대규모점포 (주황)
+    m_lat = find_col(mark_df, LAT_CANDS)
+    m_lon = find_col(mark_df, LON_CANDS)
+    market_plot = filter_points_within_radius(mark_df, m_lat, m_lon, banks_xy) if only_within else mark_df
+    for _, r in market_plot.iterrows():
+        tooltip = f"<b>대규모점포</b><br>{r.get('상호명','-')}<br>{r.get('주소','-')}"
+        folium.CircleMarker(
+            (r[m_lat], r[m_lon]),
+            radius=RADIUS_INFRA,
+            color="rgba(255,140,0,0.8)", weight=1,
+            fill=True, fill_color="rgba(255,165,0,0.55)", fill_opacity=OP_FILL_INFRA,
+            tooltip=folium.Tooltip(tooltip, sticky=False)
+        ).add_to(fg_mark)
+
+    # =========================================
+    # ⑤ 지도 구성요소
+    # =========================================
+    fg_r500.add_to(m)
+    fg_banks.add_to(m)
+    cluster.add_to(m)
+    fg_hosp.add_to(m)
+    fg_phar.add_to(m)
+    fg_mark.add_to(m)
+    MiniMap(toggle_display=True, minimized=True).add_to(m)
+    Fullscreen().add_to(m)
+    folium.LayerControl(collapsed=False).add_to(m)
+
+    # =========================================
+    # ⑥ 좌하단 범례
+    # =========================================
+    legend_html = """
+    <div style="
+        position:absolute; left:12px; bottom:12px; z-index:9999;
+        background:rgba(255,255,255,0.95); border:1px solid #ccc;
+        border-radius:8px; padding:8px 10px; font-size:12px; box-shadow:0 2px 6px rgba(0,0,0,0.15);
+    ">
+      <div style="font-weight:600; margin-bottom:6px;">표시 범례</div>
+      <div style="display:flex; align-items:center; margin:4px 0;">
+        <span style="width:14px;height:14px;border-radius:50%;
+              background:rgba(220,0,0,0.6);border:2px solid rgba(180,0,0,0.8);margin-right:8px;"></span> 병원
+      </div>
+      <div style="display:flex; align-items:center; margin:4px 0;">
+        <span style="width:14px;height:14px;border-radius:50%;
+              background:rgba(186,85,211,0.6);border:2px solid rgba(128,0,128,0.8);margin-right:8px;"></span> 약국
+      </div>
+      <div style="display:flex; align-items:center; margin:4px 0;">
+        <span style="width:14px;height:14px;border-radius:50%;
+              background:rgba(255,165,0,0.6);border:2px solid rgba(255,140,0,0.8);margin-right:8px;"></span> 대규모점포
+      </div>
+    </div>
+    """
+    m.get_root().html.add_child(folium.Element(legend_html))
+    return m
+
 # =========================
 # 4) Shiny UI — 상단 탭 + 사이드 (맵 + Top5 막대)
 # =========================
@@ -967,6 +1142,21 @@ explain_welfare = """
   <br><br>
 
   <b>3) 1~10 스케일로 리스케일</b>
+</div>
+"""
+
+explain_infra = """
+<div style='max-width:420px; font-size:12.5px; line-height:1.5;'>
+  <b>1) 인프라스코어 정의</b><br>
+  - 교통스코어와 복지스코어의 평균값으로 산출<br>
+  - 즉, 대중교통 접근성과 노인복지시설 밀집도를 종합한 지표<br><br>
+
+  <b>2) 해석</b><br>
+  - 값이 높을수록 교통 및 복지 인프라 모두 양호한 지역<br>
+  - 고령층 생활 인프라 접근성이 좋은 곳<br><br>
+  
+  <b>3) 활용</b><br>
+  - 신규 금융 거점, 시니어 맞춤 서비스 우선 대상지 선정 근거로 활용
 </div>
 """
 
@@ -1055,6 +1245,39 @@ def tab_app2_ui():
                 col_widths=[3, 7],
                 gap="0.75rem"
             )
+        ),
+        ui.nav_panel(
+            "인프라스코어 맵",
+            ui.layout_columns(
+                # 좌측 사이드
+                ui.card(
+                    ui.card_header("인프라 · 옵션"),
+                    ui.input_checkbox("only_within_i", "반경 이내 요소만 표시", True),
+                    ui.input_slider("infra_pct", "은행 지점 인프라스코어 분위(%)", 0, 100, (0, 100)),
+                    ui.input_action_button("apply_i", "적용"),
+                    ui.input_action_button("btn_explain_i", "인프라스코어 설명 보기"),
+                    ui.output_ui("popup_i"),
+                    style="min-height: 492px;",
+                    class_="sidebar-card"
+                ),
+                # 우측(맵 + Top5 막대)
+                ui.div(
+                    ui.card(
+                        ui.card_header("인프라 스코어 맵"),
+                        ui.div(ui.output_ui("infra_map_ui"), style="height: 492px;"),
+                        ui.output_ui("infra_legend_ui"),
+                        full_screen=True
+                    ),
+                    ui.card(
+                        ui.card_header("행정동 Top5 (선택 구간 기준)"),
+                        ui.output_plot("infra_top5_plot", height="492px"),
+                        full_screen=True
+                    ),
+                    style="display:flex; flex-direction:column; gap:0.75rem; width:100%;"
+                ),
+                col_widths=[3, 7],
+                gap="0.75rem"
+            )
         )
     )
 )
@@ -1064,10 +1287,12 @@ def tab_app2_server(input, output, session):
 # 설명 팝업 토글
     show_t = reactive.Value(False)
     show_w = reactive.Value(False)
+    show_i = reactive.Value(False)
 
     # 적용된 분위 구간(버튼 클릭으로만 갱신)
     applied_range_t = reactive.Value((0, 100))
     applied_range_w = reactive.Value((0, 100))
+    applied_range_i = reactive.Value((0, 100))
 
     @reactive.Effect
     @reactive.event(input.btn_explain_t)
@@ -1078,6 +1303,11 @@ def tab_app2_server(input, output, session):
     @reactive.event(input.btn_explain_w)
     def _toggle_w():
         show_w.set(not show_w())
+
+    @reactive.Effect
+    @reactive.event(input.btn_explain_i)
+    def _toggle_i():
+        show_i.set(not show_i())
 
     # 구간 적용 버튼
     @reactive.Effect
@@ -1091,6 +1321,12 @@ def tab_app2_server(input, output, session):
     def _apply_w():
         lo, hi = input.welfare_pct()
         applied_range_w.set((lo, hi))
+
+    @reactive.Effect
+    @reactive.event(input.apply_i)
+    def _apply_i():
+        lo, hi = input.infra_pct()
+        applied_range_i.set((lo, hi))
 
     def popup_html(inner_html: str):
         # 팝업 15% 확대 + 스크롤 대비
@@ -1120,6 +1356,11 @@ def tab_app2_server(input, output, session):
     @render.ui
     def popup_w():
         return ui.HTML(popup_html(explain_welfare) if show_w() else "")
+    
+    @output
+    @render.ui
+    def popup_i():
+        return ui.HTML(popup_html(explain_infra) if show_i() else "")
 
     # ----- 맵 (적용된 구간에만 의존) -----
     @output
@@ -1138,6 +1379,16 @@ def tab_app2_server(input, output, session):
         lo, hi = applied_range_w()
         m = build_welfare_map(
             only_within=input.only_within_w(),
+            pct_range=(lo, hi),
+        )
+        return ui.HTML(m._repr_html_())
+    
+    @output
+    @render.ui
+    def infra_map_ui():
+        lo, hi = applied_range_i()
+        m = build_infra_map(
+            only_within=input.only_within_i(),
             pct_range=(lo, hi),
         )
         return ui.HTML(m._repr_html_())
@@ -1160,6 +1411,15 @@ def tab_app2_server(input, output, session):
             return ui.HTML("<div style='margin-top:6px; font-size:12px; color:#666;'>복지스코어 컬럼이 없어 범례를 표시할 수 없습니다.</div>")
         html = discrete_legend_html("복지스코어 색상 구간 (YlOrRd)", vmin_w, vmax_w, welfare_cm, IR_REVERSE, n_bins=5)
         return ui.HTML(html)
+    
+    @output
+    @render.ui
+    def infra_legend_ui():
+        has_col = (b_wsc is not None) and banks[b_wsc].notna().any()
+        if not has_col:
+            return ui.HTML("<div style='margin-top:6px; font-size:12px; color:#666;'>인프라스코어 컬럼이 없어 범례를 표시할 수 없습니다.</div>")
+        html = discrete_legend_html("인프라스코어 색상 구간 (YlOrRd)", vmin_w, vmax_w, welfare_cm, IR_REVERSE, n_bins=5)
+        return ui.HTML(html)
 
     # ----- 하단 Top5 막대 (선택 구간 기준, 행정동=읍면동) -----
     @output
@@ -1176,6 +1436,12 @@ def tab_app2_server(input, output, session):
         df = percentile_filter(banks, b_wsc, lo, hi) if b_wsc else banks.iloc[0:0]
         return make_top5_admin_fig(df, "행정동 Top5 (복지스코어 선택 구간)")
 
+    @output
+    @render.plot
+    def infra_top5_plot():
+        lo, hi = applied_range_w()
+        df = percentile_filter(banks, b_wsc, lo, hi) if b_wsc else banks.iloc[0:0]
+        return make_top5_admin_fig(df, "행정동 Top5 (인프라스코어 선택 구간)")
 
 # -----------------------------------------------------------------------------
 # TAB 3 — Clone of app3.py (행정동 선택 지도 + 2개 Plotly 그래프)
