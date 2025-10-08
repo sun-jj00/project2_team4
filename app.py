@@ -52,6 +52,7 @@ GLOBAL_CSS = """
 # ---- Data load (T1_) ----
 try:
     T1_DF = pd.read_csv('./data/클러스터포함_전체.csv', encoding='utf-8-sig')
+    T1_DF_2 = pd.read_csv('./data/2차_추가분석_타겟클러스터.csv', encoding='utf-8-sig')
 except UnicodeDecodeError:
     T1_DF = pd.read_csv('./data/클러스터포함_전체.csv', encoding='cp949')
 
@@ -63,8 +64,19 @@ except Exception as e:
     print(f"[Tab1] GeoJSON load failed: {e}")
     T1_BOUNDARY = None
 
-T1_DF['은행id'] = pd.to_numeric(T1_DF.get('은행id'), errors='coerce')
-T1_DF['정책제안클러스터'] = pd.to_numeric(T1_DF.get('정책제안클러스터'), errors='coerce')
+# 새로 추가된 열만 추출
+extra_cols = [
+    "포화도", "고령유동총합_500m", "고령유동밀집도",
+    "유동인구스코어", "인프라성숙도"
+]
+
+T1_MERGED = pd.merge(T1_DF, T1_DF_2[["은행id"] + extra_cols], on="은행id", how="left")
+T1_MERGED
+
+T1_MERGED['은행id'] = pd.to_numeric(T1_MERGED.get('은행id'), errors='coerce')
+T1_MERGED['정책제안클러스터'] = pd.to_numeric(T1_MERGED.get('정책제안클러스터'), errors='coerce')
+
+T1_MERGED = T1_MERGED.rename(columns={"인프라성숙도" : "인프라스코어"})
 
 T1_CLUSTER_NAMES = {
     0: "교통·복지 취약 고령지역 지점",
@@ -77,13 +89,13 @@ T1_CLUSTER_COLORS = {
     6: {'line': 'red',   'fill': 'rgba(255, 0, 0, 0.1)'}
 }
 
-T1_METRICS = ["교통스코어", "복지스코어", "고령인구비율", "지점당인구수"]
+T1_METRICS = ["교통스코어", "복지스코어", "유동인구스코어", "지점당인구수", "인프라스코어"]
 for _c in T1_METRICS:
-    T1_DF[_c] = pd.to_numeric(T1_DF.get(_c), errors='coerce')
+    T1_MERGED[_c] = pd.to_numeric(T1_MERGED.get(_c), errors='coerce')
 
 T1_QUARTILES: dict[str, dict[str, float]] = {}
 for _m in T1_METRICS:
-    _s = T1_DF[_m].dropna().astype(float).values
+    _s = T1_MERGED[_m].dropna().astype(float).values
     if len(_s) == 0:
         T1_QUARTILES[_m] = {"Q1": 0.0, "Q2": 0.0, "Q3": 1.0}
         continue
@@ -96,7 +108,7 @@ T1_Q1_BAR = float(np.mean([T1_QUARTILES[m]["Q1"]/T1_QUARTILES[m]["Q3"] for m in 
 T1_Q2_BAR = float(np.mean([T1_QUARTILES[m]["Q2"]/T1_QUARTILES[m]["Q3"] for m in T1_METRICS]))
 T1_Q3_BAR = 1.0
 
-T1_CLUSTER_MEANS = T1_DF.groupby('클러스터')[T1_METRICS].mean(numeric_only=True)
+T1_CLUSTER_MEANS = T1_MERGED.groupby('클러스터')[T1_METRICS].mean(numeric_only=True)
 
 def T1_normalize_row_to_q3(row: pd.Series) -> list[float]:
     vals: list[float] = []
@@ -287,7 +299,7 @@ def tab_app1_server(input, output, session):
     # === 데이터 필터링 로직 수정 ===
     @reactive.Calc
     def T1_filtered_df_full():
-        base_df = T1_DF[T1_DF['클러스터'].isin([0,5,6])]
+        base_df = T1_MERGED[T1_MERGED['클러스터'].isin([0,5,6])]
         
         # input.selected_clusters() 대신 applied_selected_clusters.get() 사용
         current_selection = applied_selected_clusters.get()
@@ -295,7 +307,7 @@ def tab_app1_server(input, output, session):
             return base_df
         
         selected = [int(c) for c in current_selection]
-        filtered = T1_DF[T1_DF['클러스터'].isin(selected)].copy()
+        filtered = T1_MERGED[T1_MERGED['클러스터'].isin(selected)].copy()
         
         if input.policy_switch():
             filtered = filtered[filtered['정책제안클러스터'] == filtered['클러스터']]
@@ -401,6 +413,9 @@ SENIOR_CENTER_FILE  = "./data/노인복지센터.csv"
 SENIOR_HALL_FILE    = "./data/대구_경로당_구군동추가.csv"
 BUS_FILE            = "./data/대구_버스정류소_필터.csv"
 SUBWAY_FILE         = "./data/대구_지하철_주소_좌표추가.csv"
+HOSPITAL_FILE       = "./data/대구광역시_의료기관_현황_20250917_위경도추가_결측지제거_컬럼제거.csv"
+PHARMACY_FILE       = "./data/대구광역시_약국현황_20250917.csv"
+MARKET_FILE         = "./data/대구광역시_대규모점포_위경도_구군동추가_변환완료.csv"
 
 # 시각화 파라미터
 CENTER_DAEGU = (35.8714, 128.6014)
@@ -613,6 +628,9 @@ centers = read_csv_safe(SENIOR_CENTER_FILE)
 halls   = read_csv_safe(SENIOR_HALL_FILE)
 bus_df  = read_csv_safe(BUS_FILE)
 sub_df  = read_csv_safe(SUBWAY_FILE)
+has_df  = read_csv_safe(HOSPITAL_FILE)
+pha_df  = read_csv_safe(PHARMACY_FILE)
+mark_df  = read_csv_safe(MARKET_FILE)
 
 for d in (banks, centers, halls, bus_df, sub_df):
     d.columns = d.columns.map(lambda x: x.strip() if isinstance(x, str) else x)
@@ -920,6 +938,175 @@ def build_traffic_map(only_within: bool, pct_range: tuple[int, int]) -> folium.M
     _add_corner_legend_transport(m)
     return m
 
+def build_infra_map(only_within: bool, pct_range: tuple[int, int]) -> folium.Map:
+    m = folium.Map(
+        location=pick_coords_center(banks, b_lat, b_lon),
+        zoom_start=12, tiles="CartoDB positron",
+        height=492, width="100%"
+    )
+
+    # =========================================
+    # ① 인프라 스코어 계산 (복지+교통 평균)
+    # =========================================
+    if "인프라스코어" not in banks.columns:
+        banks["인프라스코어"] = (banks[b_wsc].fillna(0) + banks[b_tsc].fillna(0)) / 2
+
+    banks_f = percentile_filter(banks, "인프라스코어", pct_range[0], pct_range[1])
+    vmin_i, vmax_i = series_minmax_num(banks["인프라스코어"])
+    infra_cm = LinearColormap(colors=YLORRD, vmin=vmin_i, vmax=vmax_i)
+
+    # =========================================
+    # ② FeatureGroup 정의
+    # =========================================
+    fg_r500 = folium.FeatureGroup(name="반경 500m", show=False)
+    fg_banks = folium.FeatureGroup(name="은행 지점", show=True)
+    fg_hosp  = folium.FeatureGroup(name="의료기관", show=False)
+    fg_phar  = folium.FeatureGroup(name="약국", show=False)
+    fg_mark  = folium.FeatureGroup(name="대규모점포", show=False)
+    cluster  = MarkerCluster(name="클러스터(인프라 IR)", show=False,
+                             options={"spiderfyOnMaxZoom": True, "disableClusteringAtZoom": 16})
+
+    # =========================================
+    # ③ 은행 지점 (중심)
+    # =========================================
+    for _, row in banks_f.iterrows():
+        lat, lon = float(row[b_lat]), float(row[b_lon])
+        val = float(row["인프라스코어"])
+        color = ir_color(infra_cm, val, vmin_i, vmax_i, reverse=IR_REVERSE)
+        alpha = 0.65 + 0.30 * ((val - vmin_i) / (vmax_i - vmin_i + 1e-12))
+
+        bank_name = (str(row.get(b_bank)) if b_bank and pd.notna(row.get(b_bank)) else "-")
+        branch    = (str(row.get(b_br))   if b_br   and pd.notna(row.get(b_br))   else "-")
+        addr      = (str(row.get(b_addr)) if b_addr and pd.notna(row.get(b_addr)) else "-")
+
+        tooltip_html = f"""
+        <div style="font-size:12px;">
+          <b>은행</b>: {bank_name}<br>
+          <b>지점명</b>: {branch}<br>
+          <b>인프라스코어</b>: {val:.3f}<br>
+          <b>복지스코어</b>: {row.get(b_wsc, '-')}<br>
+          <b>교통스코어</b>: {row.get(b_tsc, '-')}<br>
+          <hr style='margin:4px 0;'>
+          <b>주소</b>: {addr}
+        </div>
+        """
+
+        # 반경 500m 링
+        folium.Circle(
+            location=(lat, lon), radius=H500_M,
+            color="rgba(30,144,255,0.8)", weight=1,
+            fill=True, fill_color="rgba(30,144,255,0.5)", fill_opacity=0.06,
+            tooltip=folium.Tooltip(tooltip_html, sticky=False), opacity=0.9
+        ).add_to(fg_r500)
+
+        # 메인 은행 마커(글로우 3중)
+        folium.CircleMarker(location=(lat, lon), radius=RADIUS_BANK*2.6,
+                            color=None, weight=0, fill=True,
+                            fill_color=color, fill_opacity=0.18).add_to(fg_banks)
+        folium.CircleMarker(location=(lat, lon), radius=RADIUS_BANK*1.6,
+                            color=None, weight=0, fill=True,
+                            fill_color=color, fill_opacity=0.28).add_to(fg_banks)
+        folium.CircleMarker(location=(lat, lon), radius=RADIUS_BANK,
+                            color=color, weight=2, fill=True, fill_color=color,
+                            fill_opacity=alpha,
+                            tooltip=folium.Tooltip(tooltip_html, sticky=False)
+        ).add_to(fg_banks)
+
+        # 은행 아이콘 (🏦)
+        folium.Marker(
+            location=(lat, lon),
+            tooltip=folium.Tooltip(tooltip_html, sticky=False),
+            icon=folium.DivIcon(html="<div style='font-size:18px; line-height:18px;'>🏦</div>",
+                                class_name="bank-emoji")
+        ).add_to(cluster)
+
+    banks_xy = (banks_f[b_lat].to_numpy(), banks_f[b_lon].to_numpy())
+
+    # =========================================
+    # ④ 주변 인프라 레이어
+    # =========================================
+    # 병원 (빨강)
+    h_lat = find_col(has_df, LAT_CANDS)
+    h_lon = find_col(has_df, LON_CANDS)
+    hospitals_plot = filter_points_within_radius(has_df, h_lat, h_lon, banks_xy) if only_within else has_df
+    for _, r in hospitals_plot.iterrows():
+        tooltip = f"<b>의료기관</b><br>{r.get('기관명','-')}<br>{r.get('주소','-')}"
+        folium.CircleMarker(
+            (r[h_lat], r[h_lon]),
+            radius=RADIUS_INFRA,
+            color="rgba(180,0,0,0.8)", weight=1,
+            fill=True, fill_color="rgba(220,0,0,0.6)", fill_opacity=OP_FILL_INFRA,
+            tooltip=folium.Tooltip(tooltip, sticky=False)
+        ).add_to(fg_hosp)
+
+    # 약국 (보라)
+    p_lat = find_col(pha_df, LAT_CANDS)
+    p_lon = find_col(pha_df, LON_CANDS)
+    pharmacy_plot = filter_points_within_radius(pha_df, p_lat, p_lon, banks_xy) if only_within else pha_df
+    for _, r in pharmacy_plot.iterrows():
+        tooltip = f"<b>약국</b><br>{r.get('약국명','-')}<br>{r.get('주소','-')}"
+        folium.CircleMarker(
+            (r[p_lat], r[p_lon]),
+            radius=RADIUS_INFRA,
+            color="rgba(128,0,128,0.75)", weight=1,
+            fill=True, fill_color="rgba(186,85,211,0.55)", fill_opacity=OP_FILL_INFRA,
+            tooltip=folium.Tooltip(tooltip, sticky=False)
+        ).add_to(fg_phar)
+
+    # 대규모점포 (주황)
+    m_lat = find_col(mark_df, LAT_CANDS)
+    m_lon = find_col(mark_df, LON_CANDS)
+    market_plot = filter_points_within_radius(mark_df, m_lat, m_lon, banks_xy) if only_within else mark_df
+    for _, r in market_plot.iterrows():
+        tooltip = f"<b>대규모점포</b><br>{r.get('상호명','-')}<br>{r.get('주소','-')}"
+        folium.CircleMarker(
+            (r[m_lat], r[m_lon]),
+            radius=RADIUS_INFRA,
+            color="rgba(255,140,0,0.8)", weight=1,
+            fill=True, fill_color="rgba(255,165,0,0.55)", fill_opacity=OP_FILL_INFRA,
+            tooltip=folium.Tooltip(tooltip, sticky=False)
+        ).add_to(fg_mark)
+
+    # =========================================
+    # ⑤ 지도 구성요소
+    # =========================================
+    fg_r500.add_to(m)
+    fg_banks.add_to(m)
+    cluster.add_to(m)
+    fg_hosp.add_to(m)
+    fg_phar.add_to(m)
+    fg_mark.add_to(m)
+    MiniMap(toggle_display=True, minimized=True).add_to(m)
+    Fullscreen().add_to(m)
+    folium.LayerControl(collapsed=False).add_to(m)
+
+    # =========================================
+    # ⑥ 좌하단 범례
+    # =========================================
+    legend_html = """
+    <div style="
+        position:absolute; left:12px; bottom:12px; z-index:9999;
+        background:rgba(255,255,255,0.95); border:1px solid #ccc;
+        border-radius:8px; padding:8px 10px; font-size:12px; box-shadow:0 2px 6px rgba(0,0,0,0.15);
+    ">
+      <div style="font-weight:600; margin-bottom:6px;">표시 범례</div>
+      <div style="display:flex; align-items:center; margin:4px 0;">
+        <span style="width:14px;height:14px;border-radius:50%;
+              background:rgba(220,0,0,0.6);border:2px solid rgba(180,0,0,0.8);margin-right:8px;"></span> 병원
+      </div>
+      <div style="display:flex; align-items:center; margin:4px 0;">
+        <span style="width:14px;height:14px;border-radius:50%;
+              background:rgba(186,85,211,0.6);border:2px solid rgba(128,0,128,0.8);margin-right:8px;"></span> 약국
+      </div>
+      <div style="display:flex; align-items:center; margin:4px 0;">
+        <span style="width:14px;height:14px;border-radius:50%;
+              background:rgba(255,165,0,0.6);border:2px solid rgba(255,140,0,0.8);margin-right:8px;"></span> 대규모점포
+      </div>
+    </div>
+    """
+    m.get_root().html.add_child(folium.Element(legend_html))
+    return m
+
 # =========================
 # 4) Shiny UI — 상단 탭 + 사이드 (맵 + Top5 막대)
 # =========================
@@ -955,6 +1142,21 @@ explain_welfare = """
   <br><br>
 
   <b>3) 1~10 스케일로 리스케일</b>
+</div>
+"""
+
+explain_infra = """
+<div style='max-width:420px; font-size:12.5px; line-height:1.5;'>
+  <b>1) 인프라스코어 정의</b><br>
+  - 교통스코어와 복지스코어의 평균값으로 산출<br>
+  - 즉, 대중교통 접근성과 노인복지시설 밀집도를 종합한 지표<br><br>
+
+  <b>2) 해석</b><br>
+  - 값이 높을수록 교통 및 복지 인프라 모두 양호한 지역<br>
+  - 고령층 생활 인프라 접근성이 좋은 곳<br><br>
+  
+  <b>3) 활용</b><br>
+  - 신규 금융 거점, 시니어 맞춤 서비스 우선 대상지 선정 근거로 활용
 </div>
 """
 
@@ -1043,6 +1245,39 @@ def tab_app2_ui():
                 col_widths=[3, 7],
                 gap="0.75rem"
             )
+        ),
+        ui.nav_panel(
+            "인프라스코어 맵",
+            ui.layout_columns(
+                # 좌측 사이드
+                ui.card(
+                    ui.card_header("인프라 · 옵션"),
+                    ui.input_checkbox("only_within_i", "반경 이내 요소만 표시", True),
+                    ui.input_slider("infra_pct", "은행 지점 인프라스코어 분위(%)", 0, 100, (0, 100)),
+                    ui.input_action_button("apply_i", "적용"),
+                    ui.input_action_button("btn_explain_i", "인프라스코어 설명 보기"),
+                    ui.output_ui("popup_i"),
+                    style="min-height: 492px;",
+                    class_="sidebar-card"
+                ),
+                # 우측(맵 + Top5 막대)
+                ui.div(
+                    ui.card(
+                        ui.card_header("인프라 스코어 맵"),
+                        ui.div(ui.output_ui("infra_map_ui"), style="height: 492px;"),
+                        ui.output_ui("infra_legend_ui"),
+                        full_screen=True
+                    ),
+                    ui.card(
+                        ui.card_header("행정동 Top5 (선택 구간 기준)"),
+                        ui.output_plot("infra_top5_plot", height="492px"),
+                        full_screen=True
+                    ),
+                    style="display:flex; flex-direction:column; gap:0.75rem; width:100%;"
+                ),
+                col_widths=[3, 7],
+                gap="0.75rem"
+            )
         )
     )
 )
@@ -1052,10 +1287,12 @@ def tab_app2_server(input, output, session):
 # 설명 팝업 토글
     show_t = reactive.Value(False)
     show_w = reactive.Value(False)
+    show_i = reactive.Value(False)
 
     # 적용된 분위 구간(버튼 클릭으로만 갱신)
     applied_range_t = reactive.Value((0, 100))
     applied_range_w = reactive.Value((0, 100))
+    applied_range_i = reactive.Value((0, 100))
 
     @reactive.Effect
     @reactive.event(input.btn_explain_t)
@@ -1066,6 +1303,11 @@ def tab_app2_server(input, output, session):
     @reactive.event(input.btn_explain_w)
     def _toggle_w():
         show_w.set(not show_w())
+
+    @reactive.Effect
+    @reactive.event(input.btn_explain_i)
+    def _toggle_i():
+        show_i.set(not show_i())
 
     # 구간 적용 버튼
     @reactive.Effect
@@ -1079,6 +1321,12 @@ def tab_app2_server(input, output, session):
     def _apply_w():
         lo, hi = input.welfare_pct()
         applied_range_w.set((lo, hi))
+
+    @reactive.Effect
+    @reactive.event(input.apply_i)
+    def _apply_i():
+        lo, hi = input.infra_pct()
+        applied_range_i.set((lo, hi))
 
     def popup_html(inner_html: str):
         # 팝업 15% 확대 + 스크롤 대비
@@ -1108,6 +1356,11 @@ def tab_app2_server(input, output, session):
     @render.ui
     def popup_w():
         return ui.HTML(popup_html(explain_welfare) if show_w() else "")
+    
+    @output
+    @render.ui
+    def popup_i():
+        return ui.HTML(popup_html(explain_infra) if show_i() else "")
 
     # ----- 맵 (적용된 구간에만 의존) -----
     @output
@@ -1126,6 +1379,16 @@ def tab_app2_server(input, output, session):
         lo, hi = applied_range_w()
         m = build_welfare_map(
             only_within=input.only_within_w(),
+            pct_range=(lo, hi),
+        )
+        return ui.HTML(m._repr_html_())
+    
+    @output
+    @render.ui
+    def infra_map_ui():
+        lo, hi = applied_range_i()
+        m = build_infra_map(
+            only_within=input.only_within_i(),
             pct_range=(lo, hi),
         )
         return ui.HTML(m._repr_html_())
@@ -1148,6 +1411,15 @@ def tab_app2_server(input, output, session):
             return ui.HTML("<div style='margin-top:6px; font-size:12px; color:#666;'>복지스코어 컬럼이 없어 범례를 표시할 수 없습니다.</div>")
         html = discrete_legend_html("복지스코어 색상 구간 (YlOrRd)", vmin_w, vmax_w, welfare_cm, IR_REVERSE, n_bins=5)
         return ui.HTML(html)
+    
+    @output
+    @render.ui
+    def infra_legend_ui():
+        has_col = (b_wsc is not None) and banks[b_wsc].notna().any()
+        if not has_col:
+            return ui.HTML("<div style='margin-top:6px; font-size:12px; color:#666;'>인프라스코어 컬럼이 없어 범례를 표시할 수 없습니다.</div>")
+        html = discrete_legend_html("인프라스코어 색상 구간 (YlOrRd)", vmin_w, vmax_w, welfare_cm, IR_REVERSE, n_bins=5)
+        return ui.HTML(html)
 
     # ----- 하단 Top5 막대 (선택 구간 기준, 행정동=읍면동) -----
     @output
@@ -1164,6 +1436,12 @@ def tab_app2_server(input, output, session):
         df = percentile_filter(banks, b_wsc, lo, hi) if b_wsc else banks.iloc[0:0]
         return make_top5_admin_fig(df, "행정동 Top5 (복지스코어 선택 구간)")
 
+    @output
+    @render.plot
+    def infra_top5_plot():
+        lo, hi = applied_range_w()
+        df = percentile_filter(banks, b_wsc, lo, hi) if b_wsc else banks.iloc[0:0]
+        return make_top5_admin_fig(df, "행정동 Top5 (인프라스코어 선택 구간)")
 
 # -----------------------------------------------------------------------------
 # TAB 3 — Clone of app3.py (행정동 선택 지도 + 2개 Plotly 그래프)
@@ -1176,6 +1454,7 @@ WWW_DIR.mkdir(exist_ok=True)
 # ---------- 파일 경로 ----------
 SHAPE_PATH = "./data/대구_행정동_군위포함.shp"
 CSV_PATH   = "./data/클러스터포함_전체2.csv"
+CSV_PATH_2 = "./data/2차_추가분석_타겟클러스터.csv"
 
 # ---------- 상수 ----------
 NAN_COLOR       = "#BDBDBD"   # 초기/결측 채움색
@@ -1279,15 +1558,25 @@ def read_metrics(path: str) -> pd.DataFrame:
     return m
 
 metrics = read_metrics(CSV_PATH)
-gdf = gdf.merge(metrics, on="동", how="left")
+metrics2 = read_metrics(CSV_PATH_2)
 
+extra_cols_tab3 = [
+    "고령유동총합_500m", "고령유동밀집도",
+    "유동인구스코어", "인프라성숙도"
+]
+
+metrics = metrics.merge(metrics2[["은행id"] + extra_cols_tab3], on="은행id", how="left")
+gdf = gdf.merge(metrics, on="동", how="left")
+gdf.loc[33]
 # ---------- UI ----------
 all_dongs = sorted(gdf["동"].dropna().unique().tolist())
 gdf['지점당인구수'] = gdf['포화도']
-available_metrics = [c for c in ["지점당인구수", "고령인구비율"] if c in gdf.columns]
+available_metrics = [c for c in ["지점당인구수", "고령인구비율", "고령유동밀집도"] if c in gdf.columns]
 metric_choices = ["(없음)"] + available_metrics
 default_metric = "지점당인구수" if "지점당인구수" in available_metrics else (
-    "고령인구비율" if "고령인구비율" in available_metrics else "(없음)"
+    "고령인구비율" if "고령인구비율" in available_metrics else (
+        "고령유동밀집도" if "고령유동밀집도" in available_metrics else "(없음)"
+    )
 )
 
 @module.ui
@@ -1345,6 +1634,12 @@ def tab_app3_ui():
                 ui.div({"class": "card-title"}, "동별 지점당 인구수"),
                 ui.div({"class": "card-divider"}),
                 ui.output_ui("plot_saturation"),
+            ),
+            ui.div(
+                {"class": "card-box"},
+                ui.div({"class": "card-title"}, "동별 고령유동인구 밀집도"),
+                ui.div({"class": "card-divider"}),
+                ui.output_ui("plot_elderly_flow"),
             ),
         ),
         col_widths=[6, 6]
@@ -1497,7 +1792,7 @@ def tab_app3_server(input, output, session):
 
     # 현재 지표에서 값이 있는 동만 허용
     def allowed_dongs_for_metric(metric_name: str) -> list[str]:
-        if metric_name in ["지점당인구수", "고령인구비율"] and metric_name in gdf.columns:
+        if metric_name in ["지점당인구수", "고령인구비율", "고령유동밀집도"] and metric_name in gdf.columns:
             s = pd.to_numeric(gdf[metric_name], errors="coerce")
             return sorted(gdf.loc[s.notna(), "동"].unique().tolist())
         return sorted(gdf["동"].dropna().unique().tolist())
@@ -1546,7 +1841,7 @@ def tab_app3_server(input, output, session):
         allowed = allowed_dongs_for_metric(metric)  # 현재 지표에서 값이 있는 동만
 
         # 값이 없는 동을 클릭한 경우 → 알림 후 중단
-        if dong not in allowed and metric in ["지점당인구수", "고령인구비율"] and metric in gdf.columns:
+        if dong not in allowed and metric in ["지점당인구수", "고령인구비율", "고령유동밀집도"] and metric in gdf.columns:
             notify(f"'{dong}'에는 '{metric}' 값이 없어 선택할 수 없습니다.", type_="warning", duration_ms=3500)
             return
 
@@ -1665,7 +1960,7 @@ def tab_app3_server(input, output, session):
         # CSS max()로 최소 높이 보장 + 뷰포트 비율 적용
         return ui.div(
             {"id": "map_container",
-            "style": f"height: max({MIN_MAP_HEIGHT}px, calc(var(--vh, 1vh) * {pct}));"},
+            "style": f"height: 95%;"},
             ui.output_ui("map_html")
     )
     # -------- 지도 생성 (folium → srcdoc) --------
@@ -1701,7 +1996,7 @@ def tab_app3_server(input, output, session):
         minx, miny, maxx, maxy = tb_src
         m.fit_bounds([[miny, minx], [maxy, maxx]])
 
-        if len(gsel) > 0 and metric in gsel.columns and metric in ["지점당인구수", "고령인구비율"]:
+        if len(gsel) > 0 and metric in gsel.columns and metric in ["지점당인구수", "고령인구비율", "고령유동밀집도"]:
             s = pd.to_numeric(gsel[metric], errors="coerce")
             if s.notna().sum() > 0:
                 bins = compute_bins(s, binmode, k)
@@ -1741,7 +2036,7 @@ def tab_app3_server(input, output, session):
 
                 is_all_selected = bool(selected_list) and (set(selected_list) == set(allowed_all))
 
-                if is_all_selected and metric in ["지점당인구수", "고령인구비율"]:
+                if is_all_selected and metric in ["지점당인구수", "고령인구비율", "고령유동밀집도"]:
                     # 중복/NaN 대비: 동별 평균 후 상위 3
                     df_rank = (
                         gsel[["동", metric]].copy()
@@ -1821,7 +2116,7 @@ def tab_app3_server(input, output, session):
                 is_all_selected = bool(selected_list) and (set(selected_list) == set(allowed_all))
 
                 # 3) 라벨 대상으로 사용할 동 이름 목록(target_names) 결정
-                if is_all_selected and metric in ["지점당인구수", "고령인구비율"] and metric in gdf.columns:
+                if is_all_selected and metric in ["지점당인구수", "고령인구비율", "고령유동밀집도"] and metric in gdf.columns:
                     # 전체선택이면 지표 기준 상위 TOPN_ALL만
                     df_all = (
                         gdf[gdf["동"].isin(allowed_all)][["동", metric]].copy()
@@ -1992,74 +2287,67 @@ def tab_app3_server(input, output, session):
         return ui.HTML(build_map_html(selected))
 
     # -------- Plotly: 세로 막대 Top10 (동적 높이) --------
-    def build_plotly_topN(metric_col: str, title_prefix: str, ylabel: str, height_px: int, selected: list[str], topn: int = 10):
+    def build_plotly_topN(metric_col: str, title_prefix: str, ylabel: str,
+                        height_px: int, selected: list[str], topn: int = 10,
+                        top_highlight: int = 3):  # ← 새 인자 추가
         try:
-            # ---------- 상수 ----------
-            BAR_TEXT_SIZE = 18  # 막대 내부 수치 글자 크기
+            BAR_TEXT_SIZE = 18
+
+            # === 1) 유효성 검사 ===
             if metric_col not in gdf.columns:
                 fig = go.Figure()
                 fig.update_layout(
                     title=f"'{metric_col}' 컬럼이 없습니다.",
-                    height=height_px, margin=dict(l=10, r=10, t=48, b=10),
+                    height=height_px,
+                    margin=dict(l=10, r=10, t=48, b=10),
                     font=dict(family="Malgun Gothic, AppleGothic, NanumGothic, Noto Sans KR, Arial")
                 )
                 return fig
 
+            # === 2) 데이터 준비 ===
             geo = gdf[["동", metric_col]].copy()
             geo[metric_col] = pd.to_numeric(geo[metric_col], errors="coerce")
-            geo = geo.dropna(subset=[metric_col])
 
-            # ▼ 선택된 동만 사용 (선택이 없으면 전체)
             if selected:
                 geo = geo[geo["동"].isin(selected)]
+            geo = geo.dropna(subset=[metric_col])
 
             if geo.empty:
-                msg = "선택된 동에 유효한 데이터가 없습니다." if selected else "유효한 데이터가 없습니다."
+                msg = f"선택된 동에 '{metric_col}' 값이 없습니다."
                 fig = go.Figure()
                 fig.update_layout(
                     title=msg,
-                    height=height_px, margin=dict(l=10, r=10, t=48, b=10),
+                    height=height_px,
+                    margin=dict(l=10, r=10, t=48, b=10),
                     font=dict(family="Malgun Gothic, AppleGothic, NanumGothic, Noto Sans KR, Arial")
                 )
                 return fig
 
-            # 동 이름 중복 대비 → 평균 집계
+            # === 3) 평균 및 정렬 ===
             geo = geo.groupby("동", as_index=False)[metric_col].mean()
 
-            # 0~1.5면 비율 판단 → % 표시
             s = geo[metric_col]
             is_ratio = (s.min() >= 0) and (s.max() <= 1.5)
             scale = 100.0 if is_ratio else 1.0
             disp_col = f"{metric_col}__disp"
             geo[disp_col] = s * scale
 
-            # 상위 N만 남기기
             geo = geo.sort_values(disp_col, ascending=False)
             N = min(topn, len(geo))
             top = geo.head(N).reset_index(drop=True)
 
-            # --- 전체 선택 여부 판단(해당 지표 기준) ---
-            try:
-                allowed_all = allowed_dongs_for_metric(metric_col)  # 현재 지표에서 유효한 전체 동
-            except Exception:
-                allowed_all = sorted(gdf["동"].dropna().unique().tolist())
-
-            is_all_selected = bool(selected) and (set(selected) == set(allowed_all))
-            is_none_selected = not selected
-
-            highlight = is_all_selected or is_none_selected  # ⬅️ 두 경우 모두 강조
-            TOP_HILITE = min(3, len(top))  # 데이터가 3 미만이면 있는 만큼만
-
-            # 막대 색/외곽선 구성
+            # === 4) 색상 세팅 ===
             DEFAULT_BAR = "#636EFA"
             HILITE_FILL = "#e53935"
             HILITE_LINE = "#b71c1c"
 
-            bar_colors = []
-            line_colors = []
-            line_widths = []
+            bar_colors, line_colors, line_widths = [], [], []
+
+            # ✅ 강조 개수가 top_highlight보다 작으면 강조하지 않음
+            enable_highlight = len(top) >= top_highlight
+
             for i in range(len(top)):
-                if highlight and i < TOP_HILITE:
+                if enable_highlight and i < top_highlight:
                     bar_colors.append(HILITE_FILL)
                     line_colors.append(HILITE_LINE)
                     line_widths.append(2.0)
@@ -2068,31 +2356,22 @@ def tab_app3_server(input, output, session):
                     line_colors.append("rgba(0,0,0,0)")
                     line_widths.append(0)
 
-            # 동적 제목
+            # === 5) 제목 ===
             if selected:
                 title = f"{title_prefix} (선택 {len(set(selected))}개 중 상위 {N})"
             else:
                 title = f"{title_prefix} (전체 중 상위 {N})"
 
+            # === 6) 그래프 생성 ===
             fig = px.bar(
                 top, x="동", y=disp_col, title=title,
                 labels={"동": "동", disp_col: ylabel},
-                # text=top[disp_col].round(1)
             )
-            # fig.update_traces(textposition="inside")  # 텍스트를 막대 내부에 고정
-            # fig.update_traces(
-            #     insidetextfont=dict(size=BAR_TEXT_SIZE, color="white"),
-            #     outsidetextfont=dict(size=BAR_TEXT_SIZE, color="#111"),
-            # )
-            # fig.update_layout(uniformtext_minsize=BAR_TEXT_SIZE-2, uniformtext_mode="hide")
             fig.update_traces(
                 marker_color=bar_colors,
                 marker_line_color=line_colors,
                 marker_line_width=line_widths,
-            )
-            fig.update_traces(
-                hovertemplate="동=%{x}<br>"+ylabel+"=%{y:.1f}"+("%" if is_ratio else "")+"<extra></extra>",
-                # texttemplate="%{text:.1f}"+("%" if is_ratio else ""),
+                hovertemplate="동=%{x}<br>" + ylabel + "=%{y:.1f}" + ("%" if is_ratio else "") + "<extra></extra>",
                 cliponaxis=False
             )
             fig.update_layout(
@@ -2106,8 +2385,11 @@ def tab_app3_server(input, output, session):
 
         except Exception as e:
             fig = go.Figure()
-            fig.update_layout(title=f"그래프 오류: {e}",
-                            height=height_px, margin=dict(l=10, r=10, t=48, b=10))
+            fig.update_layout(
+                title=f"그래프 오류: {e}",
+                height=height_px,
+                margin=dict(l=10, r=10, t=48, b=10)
+            )
             return fig
 
     @output
@@ -2116,10 +2398,10 @@ def tab_app3_server(input, output, session):
         map_h = map_height_safe()
         gap_between_cards = 12
         total_for_right = max(map_h - RIGHT_TRIM_PX, 0) if 'RIGHT_TRIM_PX' in globals() else map_h
-        height = max(int((total_for_right - gap_between_cards) / 2), 220)
+        height = max(int((total_for_right - gap_between_cards) / 3), 220)
 
         selected = applied.get() or []     # ⬅️ 변경
-        fig = build_plotly_topN("고령인구비율", "동별 고령인구비율", "고령인구비율(%)", height, selected, topn=10)
+        fig = build_plotly_topN("고령인구비율", "동별 고령인구비율", "고령인구비율(%)", height, selected, topn=10, top_highlight=3)
         html = fig.to_html(full_html=False, include_plotlyjs="inline", config={"responsive": True})
         return ui.HTML(f'<div style="width:100%;height:{height}px;">{html}</div>')
 
@@ -2129,10 +2411,23 @@ def tab_app3_server(input, output, session):
         map_h = map_height_safe()
         gap_between_cards = 12
         total_for_right = max(map_h - RIGHT_TRIM_PX, 0) if 'RIGHT_TRIM_PX' in globals() else map_h
-        height = max(int((total_for_right - gap_between_cards) / 2), 220)
+        height = max(int((total_for_right - gap_between_cards) / 3), 220)
 
         selected = applied.get() or []
-        fig = build_plotly_topN("지점당인구수", "동별 지점당 인구수", "스코어", height, selected, topn=10)
+        fig = build_plotly_topN("지점당인구수", "동별 지점당 인구수", "스코어", height, selected, topn=10, top_highlight=3)
+        html = fig.to_html(full_html=False, include_plotlyjs="inline", config={"responsive": True})
+        return ui.HTML(f'<div style="width:100%;height:{height}px;">{html}</div>')
+    
+    @output
+    @render.ui
+    def plot_elderly_flow():
+        map_h = map_height_safe()
+        gap_between_cards = 12
+        total_for_right = max(map_h - RIGHT_TRIM_PX, 0) if 'RIGHT_TRIM_PX' in globals() else map_h
+        height = max(int((total_for_right - gap_between_cards) / 3), 220)
+
+        selected = applied.get() or []
+        fig = build_plotly_topN("고령유동밀집도", "고령유동인구 밀집도", "스코어", height, selected, topn=10, top_highlight=3)
         html = fig.to_html(full_html=False, include_plotlyjs="inline", config={"responsive": True})
         return ui.HTML(f'<div style="width:100%;height:{height}px;">{html}</div>')
 
@@ -2458,7 +2753,7 @@ app_ui = ui.page_fluid(
     ),
     ui.navset_tab(
         ui.nav_panel("지점별 서비스 전략 제안", tab_app1_ui("t1")),
-        ui.nav_panel("지점별 교통/복지 스코어 비교", tab_app2_ui("t2")),
+        ui.nav_panel("지점별 교통/복지/인프라 스코어 비교", tab_app2_ui("t2")),
         ui.nav_panel("고령인구비율 및 은행 지점당 인구수", tab_app3_ui("t3")),
         ui.nav_panel("부록(기준 및 세부설명)", tab_app4_ui("t4")),
         id="main_tabs", selected="지점별 서비스 전략 제안"
