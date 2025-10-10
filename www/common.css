@@ -1,91 +1,373 @@
-/* ===== 공통 카드/타이틀 ===== */
-.card-box {
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 10px 12px 12px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+/* ============================================================
+   common.css — 전체 앱 공통 스타일 (2025-10-11)
+   ============================================================ */
+
+/* ====== 페이지 전체 레이아웃 ====== */
+body,
+html {
+    /* font-family: "Malgun Gothic", "NanumGothic", "Apple SD Gothic Neo",
+        "Noto Sans KR", Arial, sans-serif; */
+    background-color: #f5f6f8;
+    color: #333;
+    margin: 0;
+    padding: 0;
 }
 
-.card-title {
-    background: #f7f8fa;
-    border: 1px solid #eef0f2;
-    border-radius: 8px;
-    padding: 6px 10px;
-    font-weight: 700;
-    display: inline-block;
-    margin: 2px 0 8px 2px;
-}
-
-.card-divider {
-    height: 1px;
-    background: #e8eaee;
-    margin: 4px 0 10px;
-}
-
-/* ===== 공통 버튼 행 ===== */
-.btn-row {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    margin: 0 0 8px 0;
-}
-
-/* ===== details 기본 ===== */
-details>summary {
-    cursor: pointer;
-    font-weight: 600;
-    margin: 0 0 6px 0;
-}
-
-/* ===== 지도 컨테이너(공통 class 또는 id 끝매칭) ===== */
-.map-container,
-[id$="-map_container"] {
-    min-height: 300px;
-    position: relative;
-    z-index: 0;
-    overflow: hidden;
-}
-
-.map-container .folium-map,
-.map-container .leaflet-container,
-.map-container iframe,
-.map-container>div,
-[id$="-map_container"] .folium-map,
-[id$="-map_container"] .leaflet-container,
-[id$="-map_container"] iframe,
-[id$="-map_container"]>div {
-    height: 100% !important;
-    width: 100% !important;
-    position: relative !important;
-    z-index: 0 !important;
-    display: block;
-}
-
-/* ===== Plotly 내부 텍스트가 잘 보이도록(기본 폰트) ===== */
-.plotly .main-svg text,
-.plotly text {
-    font-family: Malgun Gothic, AppleGothic, NanumGothic, "Noto Sans KR", Arial, sans-serif !important;
-}
-
+/* ====== 상단 타이틀 ====== */
 .page-title {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: 10px 0 8px 0;
+    background: #1f2937;
+    color: #fff;
+    padding: 12px 18px;
+    border-radius: 8px;
+    margin: 10px 0 20px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
 }
 
-.page-title img {
-    height: 28px;
-    width: auto;
+.page-title h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0;
 }
 
-@media (min-width:1280px) {
-    .page-title img {
-        height: 32px;
+/* ====== 공통 카드 ====== */
+.card {
+    border: 1px solid #e5e7eb !important;
+    border-radius: 12px !important;
+    background: #fff !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08) !important;
+}
+
+.card-header {
+    background: #374151 !important;
+    color: #fff !important;
+    font-weight: 700 !important;
+    font-size: 15px !important;
+    padding: 8px 12px !important;
+    border-bottom: none !important;
+    border-top-left-radius: 12px !important;
+    border-top-right-radius: 12px !important;
+}
+
+.card-body {
+    background: #fff !important;
+    padding: 14px 16px !important;
+}
+
+/* ====== 공정별 카드 컨테이너 ====== */
+.process-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.process-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    padding: 12px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.process-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12);
+}
+
+.process-card img {
+    width: 100%;
+    height: 240px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+
+.process-card button {
+    width: 100%;
+    padding: 8px 0;
+    border-radius: 8px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.process-card button:hover {
+    background: #d1d5db;
+}
+
+/* ====== 변수 입력란 ====== */
+.input-block {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.input-block label {
+    font-weight: 600;
+    font-size: 13px;
+    color: #374151;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.input-block select,
+.input-block input {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-size: 13px;
+    outline: none;
+    background-color: #fff;
+}
+
+.input-block select:focus,
+.input-block input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* ====== 하단 전체 예측 결과 ====== */
+.result-section {
+    margin-top: 18px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 10px 14px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.result-section h4 {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #374151;
+}
+
+/* ====== 버튼 공통 ====== */
+.btn {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 8px;
+    font-weight: 600;
+    border: none;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background: #2563eb;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #1d4ed8;
+}
+
+.btn-secondary {
+    background: #9ca3af;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #6b7280;
+}
+
+.btn-disabled {
+    background: #e5e7eb;
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* ====== 세부 정리 ====== */
+details>summary {
+    cursor: pointer;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #1f2937;
+}
+
+/* ====== Plotly/텍스트 폰트 통일 ====== */
+.plotly .main-svg text,
+.plotly text {
+    font-family: "Malgun Gothic", "NanumGothic", "Noto Sans KR", Arial, sans-serif !important;
+}
+
+/* ====== 반응형 대응 ====== */
+@media (max-width: 768px) {
+    .process-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .process-card img {
+        height: 200px;
     }
 }
 
-.tab-content{
-    margin-top: 10px;
+/* ============================================================
+   탭 스타일 (상위 메인탭 + 하위 서브탭)
+   ============================================================ */
+
+/* ===== 상위 탭(navset_tab) ===== */
+.nav-tabs {
+    background: #1e293b;
+    /* 짙은 남색 배경 */
+    border-bottom: 3px solid #0f172a;
+    border-radius: 10px 10px 0 0;
+    padding: 5px 8px 0;
+}
+
+.nav-tabs .nav-item {
+    margin-right: 4px;
+}
+
+.nav-tabs .nav-link {
+    color: #d1d5db !important;
+    background: transparent;
+    border: none;
+    border-radius: 8px 8px 0 0;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 9px 16px;
+    transition: all 0.2s ease;
+}
+
+.nav-tabs .nav-link:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff !important;
+}
+
+.nav-tabs .nav-link.active {
+    background: #334155;
+    color: #fff !important;
+    border: none;
+    box-shadow: inset 0 -3px 0 0 #60a5fa;
+}
+
+/* ===== 하위 탭(secondary-tabs) 수정 버전 ===== */
+.secondary-tabs .nav-tabs {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 6px;
+    margin-top: 8px;
+    margin-bottom: 12px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.secondary-tabs .nav-link {
+    color: #374151 !important;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 13.5px;
+    padding: 6px 14px;
+    margin-right: 6px;
+    transition: all 0.2s ease;
+}
+
+.secondary-tabs .nav-link:hover {
+    background: #fff7ed;
+    border-color: #fdba74;
+    color: #b45309 !important;
+}
+
+.secondary-tabs .nav-link.active {
+    background: linear-gradient(90deg, #f97316, #fb923c);
+    border-color: #f97316;
+    color: #fff !important;
+    box-shadow: 0 2px 5px rgba(249, 115, 22, 0.25);
+}
+
+/* ===== 모바일 대응 ===== */
+@media (max-width: 768px) {
+
+    .nav-tabs,
+    .nav-tabs.secondary-tabs {
+        flex-wrap: wrap;
+    }
+
+    .nav-tabs .nav-link,
+    .nav-tabs.secondary-tabs .nav-link {
+        font-size: 13px;
+        margin-bottom: 4px;
+        padding: 6px 10px;
+    }
+}
+
+/* ============================================================
+   버튼 공통 Hover / Active 효과 (전 탭 공통)
+   ============================================================ */
+
+.btn {
+    transition: all 0.18s ease-in-out;
+    transform: translateY(0);
+}
+
+/* --- 기본 Hover 효과 --- */
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12);
+    filter: brightness(1.05);
+}
+
+/* --- 클릭 시 눌리는 느낌 --- */
+.btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) inset;
+    filter: brightness(0.95);
+}
+
+/* --- 기본색 버튼(회색 등) --- */
+.btn-secondary:hover {
+    background-color: #9ca3af;
+    filter: brightness(1.1);
+}
+
+/* --- 메인(파랑) 버튼 --- */
+.btn-primary:hover {
+    background-color: #2563eb !important;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+}
+
+/* --- 성공(초록) 버튼 --- */
+.btn-success:hover {
+    background-color: #16a34a !important;
+    box-shadow: 0 4px 10px rgba(22, 163, 74, 0.25);
+}
+
+/* --- 주황(주조계열) 버튼 --- */
+.btn-warm:hover {
+    background-color: #f97316 !important;
+    color: #fff !important;
+    box-shadow: 0 4px 10px rgba(249, 115, 22, 0.3);
+}
+
+/* --- 비활성 버튼 제외 --- */
+.btn:disabled,
+.btn-disabled,
+.btn:disabled:hover {
+    transform: none;
+    box-shadow: none;
+    filter: none;
+    cursor: not-allowed;
 }

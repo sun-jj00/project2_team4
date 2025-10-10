@@ -30,6 +30,7 @@ import seaborn as sns
 
 import plotly.express as px
 import plotly.graph_objects as go
+from matplotlib.patches import Rectangle
 
 from shiny import App, ui, render, reactive, module
 
@@ -154,104 +155,156 @@ def T1_make_square_radar(cluster_ids: list[int]) -> go.Figure:
 
 @module.ui
 def tab_app1_ui():
-    return ui.page_fluid(
-        ui.tags.style(GLOBAL_CSS),
-        ui.tags.style("""
-            /* ---- Tab1 전용: 카드가 내부를 꽉 채우도록 ---- */
-            #tab1-root .fill-card{display:flex;flex-direction:column;}
-            #tab1-root .fill-card .card-body{flex:1;display:flex;padding:0;min-height:0;}
-            #tab1-root .fill-card .card-body .fill{flex:1;display:flex;min-height:0;}
-            #tab1-root .fill-card .card-body .fill > *{flex:1;width:100%;height:100%;min-height:0;}
-
-            /* Folium/Leaflet/iframe 100% */
-            #tab1-root .fill-card .folium-map,
-            #tab1-root .fill-card .leaflet-container,
-            #tab1-root .fill-card iframe{width:100% !important;height:100% !important;}
-
-            /* Plotly 100% */
-            #tab1-root .fill-card .js-plotly-plot,
-            #tab1-root .fill-card .widget-container,
-            #tab1-root .fill-card .plotly{width:100% !important;height:100% !important;}
-
-            /* 표는 카드 안에서 스크롤 */
-            #tab1-root .fill-card .card-body{overflow:auto;}
-            #tab1-root .fill-card .card-body .fill .dataframe,
-            #tab1-root .fill-card .card-body .fill table {
-                width: 100% !important;
-                max-width: 100% !important;
-                table-layout: fixed;  /* 필요시: 열 너비 균등 */
-            }
-            """),
-        # Bootstrap Icons (아이콘)
-        ui.head_content(
-            ui.tags.link(
-                rel="stylesheet",
-                href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+    return ui.page_sidebar(
+        # ==================== 사이드바 영역 ====================
+        ui.sidebar(
+            ui.div(
+                ui.input_action_button("select_all", "☑ 모두선택", class_="btn-sm btn-outline-primary"),
+                ui.input_action_button("deselect_all", "☐ 모두해제", class_="btn-sm btn-outline-secondary"),
+                class_="btn-group"
             ),
-            ui.tags.style(".btn-group { display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px; } .color-box { display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: middle; border: 1px solid #ccc; } .shiny-input-checkboxgroup .shiny-input-container { display: flex; flex-direction: column; } .checkbox { display: flex; align-items: center; } .checkbox label { flex-grow: 1; }")
+            ui.input_checkbox_group(
+                "selected_clusters", "",
+                {
+                    "0": ui.span(
+                        ui.HTML(f'<span class="color-box" style="background-color: blue;"></span> {T1_CLUSTER_NAMES[0]}'),
+                        ui.tooltip(ui.tags.i(class_="bi bi-question-circle-fill ms-2"),
+                                   ui.HTML("교통 불편<br>노인복지 시너지 낮음<br>고령비율 높음"), placement="right")
+                    ),
+                    "5": ui.span(
+                        ui.HTML(f'<span class="color-box" style="background-color: green;"></span> {T1_CLUSTER_NAMES[5]}'),
+                        ui.tooltip(ui.tags.i(class_="bi bi-question-circle-fill ms-2"),
+                                   ui.HTML("노인복지 시너지 중간<br>교통 좋음<br>고령비율 매우 높음"), placement="right")
+                    ),
+                    "6": ui.span(
+                        ui.HTML(f'<span class="color-box" style="background-color: red;"></span> {T1_CLUSTER_NAMES[6]}'),
+                        ui.tooltip(ui.tags.i(class_="bi bi-question-circle-fill ms-2"),
+                                   ui.HTML("노인복지, 교통 둘다 좋은편<br>고령비율 높음<br>지점당 인구수 높음"), placement="right")
+                    ),
+                },
+                selected=[],
+                inline=False
+            ),
+
+            # 적용 버튼
+            ui.input_action_button(
+                "apply_filters",
+                "적용",
+                style=(
+                    "padding:8px 14px; border-radius:8px; font-weight:600; color:#fff;"
+                    "border:none; box-shadow:0 1px 2px rgba(0,0,0,.08); background:#10b981;"
+                    "width:100%;"
+                )
+            ),
+
+            ui.hr(),
+            ui.input_switch("policy_switch", "정책 제안만 보기", value=False),
+            ui.input_action_button("show_policy", "정책 설명", class_="btn-sm btn-info w-100 mt-2"),
+
+            width="350px",
+            open="desktop",   # 데스크탑에선 펼쳐짐 / 모바일에선 접힘
         ),
-        ui.layout_sidebar(
-            ui.sidebar(
-                ui.div(
-                    ui.input_action_button("select_all", "모두선택", class_="btn-sm btn-outline-primary"),
-                    ui.input_action_button("deselect_all", "모두해제", class_="btn-sm btn-outline-secondary"),
-                    class_="btn-group"
-                ),
-                ui.input_checkbox_group(
-                    "selected_clusters", "", # 제목 제거
+
+        # ==================== 본문 영역 ====================
+        ui.div({"id": "tab1-root"},
+            ui.tags.style(GLOBAL_CSS),
+            ui.tags.style("""
+                /* ---- Tab1 전용: 카드가 내부를 꽉 채우도록 ---- */
+                #tab1-root .fill-card{display:flex;flex-direction:column;}
+                #tab1-root .fill-card .card-body{flex:1;display:flex;padding:0;min-height:0;}
+                #tab1-root .fill-card .card-body .fill{flex:1;display:flex;min-height:0;}
+                #tab1-root .fill-card .card-body .fill > *{flex:1;width:100%;height:100%;min-height:0;}
+
+                /* Folium/Leaflet/iframe 100% */
+                #tab1-root .fill-card .folium-map,
+                #tab1-root .fill-card .leaflet-container,
+                #tab1-root .fill-card iframe{width:100%!important;height:100%!important;}
+
+                /* Plotly 100% */
+                #tab1-root .fill-card .js-plotly-plot,
+                #tab1-root .fill-card .widget-container,
+                #tab1-root .fill-card .plotly{width:100%!important;height:100%!important;}
+
+                /* 표는 카드 안에서 스크롤 */
+                #tab1-root .fill-card .card-body{overflow:auto;}
+                #tab1-root .fill-card .card-body .fill .dataframe,
+                #tab1-root .fill-card .card-body .fill table {
+                    width: 100%!important;
+                    max-width: 100%!important;
+                    table-layout: fixed;
+                }
+
+                /* 색상 상자와 체크박스 배치 */
+                .btn-group { display:flex; gap:10px; margin-top:10px; margin-bottom:10px; }
+                .color-box { display:inline-block; width:12px; height:12px; margin-right:8px;
+                              vertical-align:middle; border:1px solid #ccc; }
+                .shiny-input-checkboxgroup .shiny-input-container { display:flex; flex-direction:column; }
+                .checkbox { display:flex; align-items:center; }
+                .checkbox label { flex-grow:1; }
+            """),
+
+            # Bootstrap 아이콘
+            ui.head_content(
+                ui.tags.link(
+                    rel="stylesheet",
+                    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+                )
+            ),
+
+            # --- 지도 + 레이더 카드 (flex 기반 동기 높이 조정) ---
+            ui.div(
+                {
+                    "style": (
+                        "display: flex; gap: 1rem; align-items: stretch; "
+                        "width: 100%; flex-wrap: nowrap; margin-bottom: 1.5rem;"
+                    )
+                },
+
+                # ─────────────── 지도 카드 ───────────────
+                ui.card(
                     {
-                        "0": ui.span(
-                            ui.HTML(f'<span class="color-box" style="background-color: blue;"></span> {T1_CLUSTER_NAMES[0]}'),
-                            ui.tooltip(ui.tags.i(class_="bi bi-question-circle-fill ms-2"), ui.HTML("교통 불편<br>노인복지 시너지 낮음<br>고령비율 높음"), placement="right")
-                        ),
-                        "5": ui.span(
-                            ui.HTML(f'<span class="color-box" style="background-color: green;"></span> {T1_CLUSTER_NAMES[5]}'),
-                            ui.tooltip(ui.tags.i(class_="bi bi-question-circle-fill ms-2"), ui.HTML("노인복지 시너지 중간<br>교통 좋음<br>고령비율 매우 높음"), placement="right")
-                        ),
-                        "6": ui.span(
-                            ui.HTML(f'<span class="color-box" style="background-color: red;"></span> {T1_CLUSTER_NAMES[6]}'),
-                            ui.tooltip(ui.tags.i(class_="bi bi-question-circle-fill ms-2"), ui.HTML("노인복지, 교통 둘다 좋은편<br>고령비율 높음<br>지점당 인구수 높음"), placement="right")
+                        "class": "fill-card",
+                        "style": (
+                            "flex: 7; height: fit-content; margin-bottom: 0; "
+                            "display: flex; flex-direction: column;"
                         ),
                     },
-                    selected=[], inline=False
+                    ui.card_header("은행 지점 지도"),
+                    ui.div(
+                        {"class": "fill", "style": "flex:1;"},
+                        ui.output_ui("map_widget")
+                    ),
                 ),
-                # === 추가된 적용 버튼 ===
-                ui.input_action_button(
-                    "apply_filters", 
-                    "적용", 
-                    style="padding: 8px 14px; border-radius: 8px; font-weight: 600; color: #fff; border: none; box-shadow: 0 1px 2px rgba(0, 0, 0, .08); min-width: 86px; background: #10b981; width: 100% !important;"
+
+                # ─────────────── 레이더 차트 카드 ───────────────
+                ui.card(
+                    {
+                        "class": "fill-card",
+                        "style": (
+                            "flex: 5; height: auto; margin-bottom: 0; "
+                            "display: flex; flex-direction: column;"
+                        ),
+                    },
+                    ui.card_header("특징 비교"),
+                    ui.div(
+                        {"class": "fill", "style": "flex:1;"},
+                        output_widget("radar_chart")
+                    ),
                 ),
-                # =======================
-                ui.hr(), # 구분선 추가
-                ui.input_switch("policy_switch", "정책 제안만 보기", value=False),
-                ui.input_action_button("show_policy", "정책 설명", class_="btn-sm btn-info w-100 mt-2"),
-                width="350px", open="always"
             ),
-            ui.div({"id": "tab1-root"}, 
-                ui.row(
-                    ui.column(7,
-                        ui.card({"class": "fill-card"},
-                            ui.card_header("은행 지점 지도"),
-                            ui.div({"class": "fill"}, ui.output_ui("map_widget")),
-                            style="height: 60vh;"
-                        )
-                    ),
-                    ui.column(5,
-                        ui.card({"class": "fill-card"},
-                            ui.card_header("특징 비교"),
-                            ui.div({"class": "fill"}, output_widget("radar_chart")),
-                            style="height: 60vh;"
-                        )
-                    ),
+
+            ui.card({"class": "fill-card"},
+                ui.card_header(
+                    "데이터 테이블",
+                    ui.download_button("download_csv", "CSV 저장",
+                        class_="btn-sm btn-outline-primary float-end")
                 ),
-                ui.card({"class": "fill-card"},
-                    ui.card_header("데이터 테이블", ui.download_button("download_csv", "CSV 저장",
-                                        class_="btn-sm btn-outline-primary float-end")),
-                    ui.div({"class": "fill"}, ui.output_data_frame("data_table")),
-                    style="height: 45vh;"  # 표 카드도 높이 지정(필요 시 값 조절)
-                ),
-                ui.download_button("download_map", "지도 저장 (HTML)", class_="btn-primary w-100 mt-3")
-            )
+                ui.div({"class": "fill"}, ui.output_data_frame("data_table")),
+                style="height:45vh;"
+            ),
+
+            ui.download_button("download_map", "지도 저장 (HTML)",
+                class_="btn-primary w-100 mt-3")
         )
     )
 
@@ -545,38 +598,32 @@ def discrete_legend_html(title: str, vmin: float, vmax: float, cm, reverse: bool
     """
 
 # === 하단 그래프: 읍면동 Top5 막대 ===
-# === 하단 그래프: 읍면동 Top5 막대 ===
 def make_top5_admin_fig(df_filtered: pd.DataFrame, title: str, n_top: int = 5):
-    fig, ax = plt.subplots(figsize=(10, 5), dpi=100)
+    fig, ax = plt.subplots(figsize=(5, 5), dpi=120)
 
-    # === 요청하신 스타일 적용 부분 시작 ===
-    
-    # 1. Figure와 Axes의 배경색을 연한 회색/파란색 톤으로 설정합니다.
-    plot_bg_color = '#eef2f6'  # 이미지와 유사한 배경색
-    fig.set_facecolor(plot_bg_color)
-    ax.set_facecolor(plot_bg_color)
+    # === 투명 배경 ===
+    fig.patch.set_alpha(0)
+    ax.set_facecolor("none")
 
-    # 2. 그리드를 y축(수평선)에만 흰색으로 설정합니다.
-    #    linewidth와 alpha를 조절하여 선명도를 맞춥니다.
-    ax.grid(axis='y', color='white', linestyle='-', linewidth=1.5, alpha=0.8)
-    
-    # 3. 그리드가 막대그래프 '뒤'에 그려지도록 설정합니다. (매우 중요)
+    # === 그리드: 세로선 제거, 가로선만 유지 ===
+    ax.grid(axis="y", color="#e0e0e0", linestyle="-", linewidth=0.8, alpha=0.5)
+    ax.grid(False, axis="x")  # ✅ 세로선 완전 제거
     ax.set_axisbelow(True)
 
-    # 4. 불필요한 테두리(spines)를 제거하여 깔끔하게 만듭니다.
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_visible(False)
-    ax.spines['bottom'].set_color('#a0a0a0') # 하단 x축 선은 연한 회색으로 유지
-    
-    # === 스타일 적용 부분 끝 ===
+    # === 테두리 정리 ===
+    for side in ["top", "right", "left"]:
+        ax.spines[side].set_visible(False)
+    ax.spines["bottom"].set_color("#bbb")
 
+    # === 데이터 확인 ===
     if ADMIN_COL not in df_filtered.columns or df_filtered.empty:
-        ax.text(0.5, 0.5, "표시할 데이터가 없습니다.", ha="center", va="center", fontsize=12, color='grey')
+        ax.text(0.5, 0.5, "표시할 데이터가 없습니다.", ha="center", va="center",
+                fontsize=12, color="grey", alpha=0.8)
         ax.axis("off")
         fig.tight_layout()
         return fig
 
+    # === Top N 집계 ===
     counts = (
         df_filtered[ADMIN_COL]
         .astype(str)
@@ -588,36 +635,39 @@ def make_top5_admin_fig(df_filtered: pd.DataFrame, title: str, n_top: int = 5):
     x = counts.index.tolist()
     y = counts.values.tolist()
 
-    YLORRD_5 = ["#ffffcc", "#fed976", "#fd8d3c", "#e31a1c", "#800026"]
-    colors = list(reversed(YLORRD_5[:len(y)])) 
-    
-    palette_map = {lab: col for lab, col in zip(x, colors)}
-    bars = sns.barplot(
-        x=x, y=y,
-        hue=x,
-        palette=palette_map,
-        dodge=False,
-        legend=False,
-        ax=ax,
-        edgecolor="black", linewidth=0 # 테두리 선은 제거하거나 얇게 조절
-    )
-    
-    # 막대 위에 값 표시
-    ax.bar_label(bars.containers[0], fmt="%.0f", padding=3, fontsize=11, color='#333')
+    # === 색상 팔레트 (따뜻한 오렌지 톤) ===
+    base_colors = sns.color_palette("OrRd", n_colors=len(y))
+    colors = list(base_colors)
 
-    ax.set_title(title, fontsize=14, pad=15)
-    ax.set_xlabel("행정동(읍면동)", fontsize=11)
-    ax.set_ylabel("은행 지점 수", fontsize=11)
-    ax.set_ylim(0, max(y) * 1.15 if y else 1)
-    
-    # 눈금 및 라벨 색상 변경
-    ax.tick_params(axis='x', rotation=25, colors='dimgray')
-    ax.tick_params(axis='y', colors='dimgray')
-    
-    # 기존 grid 호출은 위에서 대체되었으므로 주석 처리 또는 삭제합니다.
-    # ax.grid(axis="y", alpha=0.3) 
-    
+    # === 세로 막대 그래프 ===
+    bars = ax.bar(x, y, color=colors, edgecolor="none", width=0.6, zorder=3)
+
+    # === 그림자 효과 (은은하게) ===
+    for bar in bars:
+        ax.add_patch(Rectangle(
+            (bar.get_x() + 0.02, 0),
+            bar.get_width(), bar.get_height(),
+            color="black", alpha=0.05, zorder=2
+        ))
+
+    # === 막대 위 값 표시 ===
+    for i, val in enumerate(y):
+        ax.text(i, val + max(y)*0.02, f"{val:,}",
+                ha="center", va="bottom", fontsize=11, color="#444", fontweight="semibold")
+
+    # === 제목 / 라벨 ===
+    ax.set_title(title, fontsize=15, fontweight="bold", pad=20, color="#333")
+    ax.set_xlabel("행정동(읍·면·동)", fontsize=11, labelpad=10)
+    ax.set_ylabel("은행 지점 수", fontsize=11, labelpad=10)
+
+    # === 축 스타일 ===
+    ax.tick_params(axis="x", labelsize=10, rotation=25, colors="#333")
+    ax.tick_params(axis="y", labelsize=10, colors="#666")
+
+    # === 여백 조정 ===
+    ax.set_ylim(0, max(y) * 1.25)
     fig.tight_layout()
+
     return fig
 
 # =========================
@@ -680,7 +730,6 @@ traffic_cm = LinearColormap(colors=YLORRD, vmin=vmin_t, vmax=vmax_t)
 # 3) 맵 빌더 (교통/복지)
 # =========================
 def _add_corner_legend_transport(m: folium.Map):
-    # 교통 범례(좌하단)
     html = f"""
     <div style="
         position:absolute; left:12px; bottom:12px; z-index:9999;
@@ -731,7 +780,7 @@ def build_welfare_map(only_within: bool, pct_range: tuple[int, int]) -> folium.M
     m = folium.Map(
         location=pick_coords_center(banks, b_lat, b_lon),
         zoom_start=12, tiles="CartoDB positron",
-        height=492, width="100%"
+        height="100%", width="100%"
     )
 
     banks_f = percentile_filter(banks, b_wsc, pct_range[0], pct_range[1]) if b_wsc else banks.copy()
@@ -835,7 +884,7 @@ def build_traffic_map(only_within: bool, pct_range: tuple[int, int]) -> folium.M
     m = folium.Map(
         location=pick_coords_center(banks, b_lat, b_lon),
         zoom_start=12, tiles="CartoDB positron",
-        height=492, width="100%"
+        height="100%", width="100%"
     )
 
     banks_f = percentile_filter(banks, b_tsc, pct_range[0], pct_range[1]) if b_tsc else banks.copy()
@@ -942,7 +991,7 @@ def build_infra_map(only_within: bool, pct_range: tuple[int, int]) -> folium.Map
     m = folium.Map(
         location=pick_coords_center(banks, b_lat, b_lon),
         zoom_start=12, tiles="CartoDB positron",
-        height=492, width="100%"
+        height="100%", width="100%"
     )
 
     # =========================================
@@ -1162,125 +1211,190 @@ explain_infra = """
 
 @module.ui
 def tab_app2_ui():
-    # Keep structure similar to app2.py: left options + right map/plot cards
     return ui.page_fluid(
-    ui.tags.style("""
-    .container-fluid { max-width: 100% !important; }
+        ui.tags.style("""
+        .container-fluid { max-width: 100% !important; }
 
-    /* 맵/그래프 높이 492px */
-    .card iframe { height: 492px !important; width: 100% !important; border: 0; }
-    .leaflet-container, .folium-map, .html-widget {
-        min-height: 492px !important;
-        width: 100% !important;
-    }
-    .card { width: 100% !important; }
+        /* 지도 및 Folium iframe 크기 동기화 */
+        .leaflet-container, .folium-map, .html-widget, .html-widget-static-bound, iframe {
+            height: 100% !important;
+            width: 100% !important;
+            padding-bottom: 0 !important;
+        }
 
-    /* 사이드바 카드 내부 컨텐츠 폭 90% */
-    .sidebar-card .card-body { width: 90%; margin: 0 auto; }
-    """),
+        .card { width: 100% !important; }
+        """),
 
-    ui.navset_tab(
-        ui.nav_panel(
-            "교통스코어 맵",
-            ui.layout_columns(
-                # 좌측 사이드
-                ui.card(
-                    ui.card_header("교통 · 옵션"),
-                    ui.input_checkbox("only_within_t", "반경 이내 요소만 표시", True),
-                    ui.input_slider("traffic_pct", "은행 지점 교통스코어 분위(%)", 0, 100, (0, 100)),
-                    ui.input_action_button("apply_t", "적용"),
-                    ui.input_action_button("btn_explain_t", "교통스코어 설명 보기"),
-                    ui.output_ui("popup_t"),
-                    style="min-height: 492px;",
-                    class_="sidebar-card"
-                ),
-                # 우측(맵 + Top5 막대)
-                ui.div(
-                    ui.card(
-                        ui.card_header("교통 스코어 맵"),
-                        ui.div(ui.output_ui("traffic_map_ui"), style="height: 492px;"),
-                        ui.output_ui("traffic_legend_ui"),
-                        full_screen=True
+        ui.navset_tab(
+            # ────────────────────────────────
+            # ▶ 교통스코어 맵 (7:5 비율)
+            # ────────────────────────────────
+            ui.nav_panel(
+                "교통스코어 맵",
+                ui.page_sidebar(
+                    # 사이드바
+                    ui.sidebar(
+                        ui.h5("교통 · 옵션"),
+                        ui.input_checkbox("only_within_t", "반경 이내 요소만 표시", True),
+                        ui.input_slider("traffic_pct", "은행 지점 교통스코어 분위(%)", 0, 100, (0, 100)),
+                        ui.input_action_button("apply_t", "적용", class_="btn btn-success w-100 mt-2"),
+                        ui.input_action_button("btn_explain_t", "ℹ️ 설명 보기", class_="btn btn-secondary w-100 mt-2"),
+                        ui.output_ui("popup_t")
                     ),
-                    ui.card(
-                        ui.card_header("행정동 Top5 (선택 구간 기준)"),
-                        ui.output_plot("traffic_top5_plot", height="492px"),
-                        full_screen=True
+
+                    # 본문: 지도(좌) + Top5(우)
+                    ui.div(
+                        {
+                            "style": (
+                                "display:flex; gap:1rem; align-items:stretch; width:100%; "
+                                "flex-wrap:nowrap; margin-bottom:1.5rem;"
+                            )
+                        },
+
+                        # 지도 카드
+                        ui.card(
+                            {
+                                "class": "fill-card",
+                                "style": (
+                                    "flex:7; height:fit-content; margin-bottom:0; "
+                                    "display:flex; flex-direction:column;"
+                                ),
+                            },
+                            ui.card_header("교통 스코어 맵"),
+                            ui.div({"class": "fill", "style": "flex:1;"},
+                                   ui.output_ui("traffic_map_ui")),
+                            ui.output_ui("traffic_legend_ui"),
+                        ),
+
+                        # Top5 카드
+                        ui.card(
+                            {
+                                "class": "fill-card",
+                                "style": (
+                                    "flex:5; height:auto; margin-bottom:0; "
+                                    "display:flex; flex-direction:column;"
+                                ),
+                            },
+                            ui.card_header("행정동 Top5 (선택 구간 기준)"),
+                            ui.div({"class": "fill", "style": "flex:1;"},
+                                   ui.output_plot("traffic_top5_plot", height="100%")),
+                        ),
                     ),
-                    style="display:flex; flex-direction:column; gap:0.75rem; width:100%;"
-                ),
-                col_widths=[3, 7],
-                gap="0.75rem"
-            )
+                )
+            ),
+
+            # ────────────────────────────────
+            # ▶ 복지스코어 맵 (7:5 비율)
+            # ────────────────────────────────
+            ui.nav_panel(
+                "복지스코어 맵",
+                ui.page_sidebar(
+                    ui.sidebar(
+                        ui.h5("복지 · 옵션"),
+                        ui.input_checkbox("only_within_w", "반경 이내 요소만 표시", True),
+                        ui.input_slider("welfare_pct", "은행 지점 복지스코어 분위(%)", 0, 100, (0, 100)),
+                        ui.input_action_button("apply_w", "적용", class_="btn btn-success w-100 mt-2"),
+                        ui.input_action_button("btn_explain_w", "ℹ️ 설명 보기", class_="btn btn-secondary w-100 mt-2"),
+                        ui.output_ui("popup_w")
+                    ),
+
+                    ui.div(
+                        {
+                            "style": (
+                                "display:flex; gap:1rem; align-items:stretch; width:100%; "
+                                "flex-wrap:nowrap; margin-bottom:1.5rem;"
+                            )
+                        },
+
+                        # 지도
+                        ui.card(
+                            {
+                                "class": "fill-card",
+                                "style": (
+                                    "flex:7; height:fit-content; margin-bottom:0; "
+                                    "display:flex; flex-direction:column;"
+                                ),
+                            },
+                            ui.card_header("복지 스코어 맵"),
+                            ui.div({"class": "fill", "style": "flex:1;"},
+                                   ui.output_ui("welfare_map_ui")),
+                            ui.output_ui("welfare_legend_ui"),
+                        ),
+
+                        # Top5 그래프
+                        ui.card(
+                            {
+                                "class": "fill-card",
+                                "style": (
+                                    "flex:5; height:auto; margin-bottom:0; "
+                                    "display:flex; flex-direction:column;"
+                                ),
+                            },
+                            ui.card_header("행정동 Top5 (선택 구간 기준)"),
+                            ui.div({"class": "fill", "style": "flex:1;"},
+                                   ui.output_plot("welfare_top5_plot", height="100%")),
+                        ),
+                    ),
+                )
+            ),
+
+            # ────────────────────────────────
+            # ▶ 인프라스코어 맵 (7:5 비율)
+            # ────────────────────────────────
+            ui.nav_panel(
+                "인프라스코어 맵",
+                ui.page_sidebar(
+                    ui.sidebar(
+                        ui.h5("인프라 · 옵션"),
+                        ui.input_checkbox("only_within_i", "반경 이내 요소만 표시", True),
+                        ui.input_slider("infra_pct", "은행 지점 인프라스코어 분위(%)", 0, 100, (0, 100)),
+                        ui.input_action_button("apply_i", "적용", class_="btn btn-success w-100 mt-2"),
+                        ui.input_action_button("btn_explain_i", "ℹ️ 설명 보기", class_="btn btn-secondary w-100 mt-2"),
+                        ui.output_ui("popup_i")
+                    ),
+
+                    ui.div(
+                        {
+                            "style": (
+                                "display:flex; gap:1rem; align-items:stretch; width:100%; "
+                                "flex-wrap:nowrap; margin-bottom:1.5rem;"
+                            )
+                        },
+
+                        # 지도
+                        ui.card(
+                            {
+                                "class": "fill-card",
+                                "style": (
+                                    "flex:7; height:fit-content; margin-bottom:0; "
+                                    "display:flex; flex-direction:column;"
+                                ),
+                            },
+                            ui.card_header("인프라 스코어 맵"),
+                            ui.div({"class": "fill", "style": "flex:1;"},
+                                   ui.output_ui("infra_map_ui")),
+                            ui.output_ui("infra_legend_ui"),
+                        ),
+
+                        # Top5 그래프
+                        ui.card(
+                            {
+                                "class": "fill-card",
+                                "style": (
+                                    "flex:5; height:auto; margin-bottom:0; "
+                                    "display:flex; flex-direction:column;"
+                                ),
+                            },
+                            ui.card_header("행정동 Top5 (선택 구간 기준)"),
+                            ui.div({"class": "fill", "style": "flex:1;"},
+                                   ui.output_plot("infra_top5_plot", height="100%")),
+                        ),
+                    ),
+                )
+            ),
         ),
-        ui.nav_panel(
-            "복지스코어 맵",
-            ui.layout_columns(
-                # 좌측 사이드
-                ui.card(
-                    ui.card_header("복지 · 옵션"),
-                    ui.input_checkbox("only_within_w", "반경 이내 요소만 표시", True),
-                    ui.input_slider("welfare_pct", "은행 지점 복지스코어 분위(%)", 0, 100, (0, 100)),
-                    ui.input_action_button("apply_w", "적용"),
-                    ui.input_action_button("btn_explain_w", "복지스코어 설명 보기"),
-                    ui.output_ui("popup_w"),
-                    style="min-height: 492px;",
-                    class_="sidebar-card"
-                ),
-                # 우측(맵 + Top5 막대)
-                ui.div(
-                    ui.card(
-                        ui.card_header("복지 스코어 맵"),
-                        ui.div(ui.output_ui("welfare_map_ui"), style="height: 492px;"),
-                        ui.output_ui("welfare_legend_ui"),
-                        full_screen=True
-                    ),
-                    ui.card(
-                        ui.card_header("행정동 Top5 (선택 구간 기준)"),
-                        ui.output_plot("welfare_top5_plot", height="492px"),
-                        full_screen=True
-                    ),
-                    style="display:flex; flex-direction:column; gap:0.75rem; width:100%;"
-                ),
-                col_widths=[3, 7],
-                gap="0.75rem"
-            )
-        ),
-        ui.nav_panel(
-            "인프라스코어 맵",
-            ui.layout_columns(
-                # 좌측 사이드
-                ui.card(
-                    ui.card_header("인프라 · 옵션"),
-                    ui.input_checkbox("only_within_i", "반경 이내 요소만 표시", True),
-                    ui.input_slider("infra_pct", "은행 지점 인프라스코어 분위(%)", 0, 100, (0, 100)),
-                    ui.input_action_button("apply_i", "적용"),
-                    ui.input_action_button("btn_explain_i", "인프라스코어 설명 보기"),
-                    ui.output_ui("popup_i"),
-                    style="min-height: 492px;",
-                    class_="sidebar-card"
-                ),
-                # 우측(맵 + Top5 막대)
-                ui.div(
-                    ui.card(
-                        ui.card_header("인프라 스코어 맵"),
-                        ui.div(ui.output_ui("infra_map_ui"), style="height: 492px;"),
-                        ui.output_ui("infra_legend_ui"),
-                        full_screen=True
-                    ),
-                    ui.card(
-                        ui.card_header("행정동 Top5 (선택 구간 기준)"),
-                        ui.output_plot("infra_top5_plot", height="492px"),
-                        full_screen=True
-                    ),
-                    style="display:flex; flex-direction:column; gap:0.75rem; width:100%;"
-                ),
-                col_widths=[3, 7],
-                gap="0.75rem"
-            )
-        )
+        class_="secondary-tabs"
     )
-)
 
 @module.server
 def tab_app2_server(input, output, session):
@@ -1582,181 +1696,136 @@ default_metric = "지점당인구수" if "지점당인구수" in available_metri
 @module.ui
 def tab_app3_ui():
     return ui.page_sidebar(
-    ui.sidebar(
-        # ▼ 모두선택/모두해제 2버튼 (요청 스타일)
-        ui.div(
-            {"class": "btn-row"},
-            ui.input_action_button("select_all_", "☑ 모두선택"),
-            ui.input_action_button("clear_all", "☐ 모두해제"),
-        ),
-        ui.div(
-            {"class": "btn-row btn-row-apply"},
-            ui.input_action_button("apply", "적용"),
-        ),
-        ui.tags.details(
-            {"id": "dong_details", "open": ""},  # ← 이 부분 추가
-            ui.tags.summary("읍·면·동 선택"),
+        ui.sidebar(
+            # --- 모두선택/모두해제 버튼 ---
             ui.div(
-                {"id": "dong_list_container",
-                 "style": "max-height: 40vh; overflow:auto; border:1px solid #eee; padding:6px; border-radius:8px;"},
-                ui.input_checkbox_group("dongs", None, choices=all_dongs, selected=[])
-            )
-        ),
-        ui.hr(),
-        ui.input_select("metric", "채색 지표", choices=metric_choices, selected=default_metric),
-        ui.hr(),
-        ui.input_action_button("btn_glossary", "ℹ️ 용어 설명"),
-
-        # ui.p(ui.code(SHAPE_PATH), " → WGS84 변환 후 표시"),
-        # ui.p(ui.code(CSV_PATH), " 의 ", ui.code("읍면동/동, 포화도, 고령인구비율"), " 사용"),
-    ),
-
-    # 본문 1행 2열 (6:6)
-    ui.layout_columns(
-        # [좌] 지도 카드
-        ui.div(
-            {"class": "card-box"},
-            ui.div({"class": "card-title"}, "대구시 읍·면·동 선택 영역 지도"),
-            ui.div({"class": "card-divider"}),   # ← 제목 아래 구분선
-            ui.output_ui("map_container_dyn"),
-        ),
-        # [우] 그래프 카드 2개
-        ui.div(
-            {"style": "display:flex; flex-direction:column; gap:12px;"},
-            ui.div(
-                {"class": "card-box"},
-                ui.div({"class": "card-title"}, "동별 고령인구비율"),
-                ui.div({"class": "card-divider"}),
-                ui.output_ui("plot_elderly"),
+                {"class": "btn-row"},
+                ui.input_action_button("select_all_", "☑ 모두선택"),
+                ui.input_action_button("clear_all", "☐ 모두해제"),
             ),
             ui.div(
-                {"class": "card-box"},
-                ui.div({"class": "card-title"}, "동별 지점당 인구수"),
-                ui.div({"class": "card-divider"}),
-                ui.output_ui("plot_saturation"),
+                {"class": "btn-row btn-row-apply"},
+                ui.input_action_button("apply", "적용"),
             ),
-            ui.div(
-                {"class": "card-box"},
-                ui.div({"class": "card-title"}, "동별 고령유동인구 밀집도"),
-                ui.div({"class": "card-divider"}),
-                ui.output_ui("plot_elderly_flow"),
+            ui.tags.details(
+                {"id": "dong_details", "open": ""},
+                ui.tags.summary("읍·면·동 선택"),
+                ui.div(
+                    {"id": "dong_list_container",
+                     "style": "max-height: 40vh; overflow:auto; border:1px solid #eee; padding:6px; border-radius:8px;"},
+                    ui.input_checkbox_group("dongs", None, choices=all_dongs, selected=[])
+                )
             ),
+            ui.hr(),
+            ui.input_select("metric", "채색 지표", choices=metric_choices, selected=default_metric),
+            ui.hr(),
+            ui.input_action_button("btn_glossary", "ℹ️ 용어 설명"),
         ),
-        col_widths=[6, 6]
-    ),
 
-    # 스타일 + viewport 높이 전달 스크립트
-    ui.tags.style("""
-      /* --- 카드/제목/구분선 --- */
-      .card-box {
-        background: #fff;
-        border: 1px solid #e5e7eb;
-        border-radius: 12px;
-        padding: 10px 12px 12px 12px;
-        box-shadow: 0 1px 2px rgba(0,0,0,.04);
-      }
-      .card-title {
-        background: #f7f8fa;       /* 제목 배경 연회색 */
-        border: 1px solid #eef0f2;  /* 살짝 테두리 */
-        border-radius: 8px;
-        padding: 6px 10px;
-        font-weight: 700;
-        display: inline-block;      /* 내용 길이만큼 배경 */
-        margin: 2px 0 8px 2px;
-      }
-      .card-divider {
-        height: 1px;
-        background: #e8eaee;       /* 제목 아래 구분선 */
-        margin: 4px 0 10px 0;
-      }
+        # 본문
+        ui.layout_columns(
+            # [좌] 지도 카드
+            ui.card(
+                ui.card_header("대구시 읍·면·동 선택 영역 지도"),
+                ui.card_body(
+                    ui.output_ui("map_container_dyn")
+                )
+            ),
+            # [우] 그래프 카드 3개
+            ui.div(
+                {"style": "display:flex; flex-direction:column; gap:12px;"},
+                ui.card(
+                    ui.card_header("동별 고령인구비율"),
+                    ui.card_body(ui.output_ui("plot_elderly")),
+                ),
+                ui.card(
+                    ui.card_header("동별 지점당 인구수"),
+                    ui.card_body(ui.output_ui("plot_saturation")),
+                ),
+                ui.card(
+                    ui.card_header("동별 고령유동인구 밀집도"),
+                    ui.card_body(ui.output_ui("plot_elderly_flow")),
+                ),
+            ),
+            col_widths=[6, 6]
+        ),
 
-      /* --- 지도 컨테이너 --- */
-      #map_container { min-height: 300px; position: relative; z-index: 0; overflow: hidden; }
-      #map_container .folium-map,
-      #map_container .leaflet-container,
-      #map_container iframe,
-      #map_container > div {
-        height: 100% !important; width: 100% !important;
-        position: relative !important; z-index: 0 !important; display: block;
-      }
+        # --- 스타일 ---
+        ui.tags.style("""
+          /* 카드 공통 */
+          .card {
+            border: 1px solid #e5e7eb !important;
+            border-radius: 12px !important;
+            box-shadow: 0 1px 2px rgba(0,0,0,.04) !important;
+            background: #fff !important;
+          }
+          .card-body {
+            padding: 12px 16px !important;
+          }
 
-        /* --- 사이드바 --- */
-        details > summary { cursor: pointer; font-weight: 600; margin: 0 0 6px 0; }
-        #dong_list_container { background: #fff; }
+          /* 사이드바 스타일 */
+          details > summary { cursor: pointer; font-weight: 600; margin: 0 0 6px 0; }
+          #dong_list_container { background: #fff; }
 
-        /* --- '모두선택/모두해제' 버튼 스타일 --- */
-        .btn-row { display:flex; gap:10px; align-items:center; margin: 0 0 8px 0; }
-        #select_all_, #clear_all {
-            padding: 8px 14px !important;
-            border-radius: 8px !important;
-            font-weight: 500 !important;
-            font-size: 12px;
-            color: #fff !important;
-            border: none !important;
-            box-shadow: 0 1px 2px rgba(0,0,0,.08);
-            min-width: 93px;
-        }
-        #select_all_ { background: #2196f3 !important; }         /* 파란색 */
-        #select_all_:hover { background: #1e88e5 !important; }
-        #clear_all { background: #f44336 !important; }          /* 빨간색 */
-        #clear_all:hover { background: #e53935 !important; }
-      
-        #btn_glossary {
-            padding: 8px 14px !important;
-            border-radius: 8px !important;
-            font-weight: 600 !important;
-            color: #fff !important;
-            background: #64748b !important; /* slate */
-            border: none !important;
-            box-shadow: 0 1px 2px rgba(0,0,0,.08);
-            margin-bottom: 8px;
-        }
-        #btn_glossary:hover { background:#475569 !important; }
-    """),
-    ui.tags.script("""
-        (function(){
-            var lastH = -1, timer = null, DEBOUNCE_MS = 180;
+          /* 모두선택/모두해제 버튼 */
+          .btn-row { display:flex; gap:10px; align-items:center; margin: 0 0 8px 0; }
+          #select_all_, #clear_all {
+              padding: 8px 14px !important;
+              border-radius: 8px !important;
+              font-weight: 500 !important;
+              font-size: 12px;
+              color: #fff !important;
+              border: none !important;
+              box-shadow: 0 1px 2px rgba(0,0,0,.08);
+              min-width: 93px;
+          }
+          #select_all_ { background: #2196f3 !important; }
+          #select_all_:hover { background: #1e88e5 !important; }
+          #clear_all { background: #f44336 !important; }
+          #clear_all:hover { background: #e53935 !important; }
 
-            function nowH(){ return (window.innerHeight || document.documentElement.clientHeight || 0); }
+          #btn_glossary {
+              padding: 8px 14px !important;
+              border-radius: 8px !important;
+              font-weight: 600 !important;
+              color: #fff !important;
+              background: #64748b !important;
+              border: none !important;
+              box-shadow: 0 1px 2px rgba(0,0,0,.08);
+              margin-bottom: 8px;
+          }
+          #btn_glossary:hover { background:#475569 !important; }
+        """),
 
-            // 모듈 네임스페이스 자동 추적 (예: 'p1')
-            function getNamespace(){
-                // 모듈 내부에 확실히 존재하는 입력 id를 기준으로 추적 (여기선 체크박스 'dongs')
-                var el = document.querySelector('[id$="-dongs"]');
-                if (!el || !el.id) return "";
-                return el.id.replace(/-dongs$/, ""); // 'p1-dongs' -> 'p1'
-            }
-
-            function sendVH(force){
-                var h = nowH();
-                if (!force && h === lastH) return;
-                lastH = h;
-
-                // 1) CSS 변수 --vh 업데이트
-                document.documentElement.style.setProperty('--vh', (h * 0.01) + 'px');
-
-                // 2) Shiny 입력 전송 (모듈 ns에 맞게)
-                var ns = getNamespace();
-                if (window.Shiny && Shiny.setInputValue){
-                // 모듈 입력
-                if (ns) Shiny.setInputValue(ns + '-viewport_h', h, {priority:'event'});
-                // 혹시를 위해 루트 입력도 같이 보냄(무해)
-                Shiny.setInputValue('viewport_h', h, {priority:'event'});
+        # --- viewport 높이 스크립트 ---
+        ui.tags.script("""
+            (function(){
+                var lastH = -1, timer = null, DEBOUNCE_MS = 180;
+                function nowH(){ return (window.innerHeight || document.documentElement.clientHeight || 0); }
+                function getNamespace(){
+                    var el = document.querySelector('[id$="-dongs"]');
+                    if (!el || !el.id) return "";
+                    return el.id.replace(/-dongs$/, "");
                 }
-            }
-
-            function onResize(){
-                clearTimeout(timer);
-                timer = setTimeout(function(){ sendVH(false); }, DEBOUNCE_MS);
-            }
-
-            window.addEventListener('resize', onResize, {passive:true});
-            window.addEventListener('orientationchange', function(){ setTimeout(function(){ sendVH(true); }, 200); }, {passive:true});
-            document.addEventListener('DOMContentLoaded', function(){ sendVH(true); });
-            setTimeout(function(){ sendVH(true); }, 150);
+                function sendVH(force){
+                    var h = nowH();
+                    if (!force && h === lastH) return;
+                    lastH = h;
+                    document.documentElement.style.setProperty('--vh', (h * 0.01) + 'px');
+                    var ns = getNamespace();
+                    if (window.Shiny && Shiny.setInputValue){
+                        if (ns) Shiny.setInputValue(ns + '-viewport_h', h, {priority:'event'});
+                        Shiny.setInputValue('viewport_h', h, {priority:'event'});
+                    }
+                }
+                function onResize(){ clearTimeout(timer); timer = setTimeout(function(){ sendVH(false); }, DEBOUNCE_MS); }
+                window.addEventListener('resize', onResize, {passive:true});
+                window.addEventListener('orientationchange', function(){ setTimeout(function(){ sendVH(true); }, 200); }, {passive:true});
+                document.addEventListener('DOMContentLoaded', function(){ sendVH(true); });
+                setTimeout(function(){ sendVH(true); }, 150);
             })();
-    """),
-)
+        """),
+    )
 
 @module.server
 def tab_app3_server(input, output, session):
@@ -1960,7 +2029,7 @@ def tab_app3_server(input, output, session):
         # CSS max()로 최소 높이 보장 + 뷰포트 비율 적용
         return ui.div(
             {"id": "map_container",
-            "style": f"height: 95%;"},
+            "style": f"height: 100%;"},
             ui.output_ui("map_html")
     )
     # -------- 지도 생성 (folium → srcdoc) --------
@@ -2286,10 +2355,9 @@ def tab_app3_server(input, output, session):
         selected = applied.get() or []     # ⬅️ 변경
         return ui.HTML(build_map_html(selected))
 
-    # -------- Plotly: 세로 막대 Top10 (동적 높이) --------
     def build_plotly_topN(metric_col: str, title_prefix: str, ylabel: str,
                         height_px: int, selected: list[str], topn: int = 10,
-                        top_highlight: int = 3):  # ← 새 인자 추가
+                        top_highlight: int = 3):
         try:
             BAR_TEXT_SIZE = 18
 
@@ -2300,6 +2368,8 @@ def tab_app3_server(input, output, session):
                     title=f"'{metric_col}' 컬럼이 없습니다.",
                     height=height_px,
                     margin=dict(l=10, r=10, t=48, b=10),
+                    paper_bgcolor="rgba(0,0,0,0)",   # ✅ 배경 제거
+                    plot_bgcolor="rgba(0,0,0,0)",    # ✅ 배경 제거
                     font=dict(family="Malgun Gothic, AppleGothic, NanumGothic, Noto Sans KR, Arial")
                 )
                 return fig
@@ -2319,6 +2389,8 @@ def tab_app3_server(input, output, session):
                     title=msg,
                     height=height_px,
                     margin=dict(l=10, r=10, t=48, b=10),
+                    paper_bgcolor="rgba(0,0,0,0)",   # ✅ 배경 제거
+                    plot_bgcolor="rgba(0,0,0,0)",    # ✅ 배경 제거
                     font=dict(family="Malgun Gothic, AppleGothic, NanumGothic, Noto Sans KR, Arial")
                 )
                 return fig
@@ -2342,8 +2414,6 @@ def tab_app3_server(input, output, session):
             HILITE_LINE = "#b71c1c"
 
             bar_colors, line_colors, line_widths = [], [], []
-
-            # ✅ 강조 개수가 top_highlight보다 작으면 강조하지 않음
             enable_highlight = len(top) >= top_highlight
 
             for i in range(len(top)):
@@ -2365,7 +2435,7 @@ def tab_app3_server(input, output, session):
             # === 6) 그래프 생성 ===
             fig = px.bar(
                 top, x="동", y=disp_col, title=title,
-                labels={"동": "동", disp_col: ylabel},
+                labels={"동": "", disp_col: ylabel},  # ✅ x축 라벨 제거
             )
             fig.update_traces(
                 marker_color=bar_colors,
@@ -2377,8 +2447,18 @@ def tab_app3_server(input, output, session):
             fig.update_layout(
                 height=height_px,
                 margin=dict(l=10, r=10, t=56, b=10),
-                xaxis=dict(tickangle=-35, categoryorder="array", categoryarray=top["동"].tolist()),
-                yaxis=dict(rangemode="tozero", ticksuffix=("%" if is_ratio else "")),
+                xaxis=dict(
+                    title=None,                   # ✅ 가로축명 제거
+                    tickangle=-35,
+                    categoryorder="array",
+                    categoryarray=top["동"].tolist(),
+                ),
+                yaxis=dict(
+                    rangemode="tozero",
+                    ticksuffix=("%" if is_ratio else "")
+                ),
+                paper_bgcolor="rgba(0,0,0,0)",   # ✅ 전체 배경 제거
+                plot_bgcolor="rgba(0,0,0,0)",    # ✅ 그래프 영역 배경 제거
                 font=dict(family="Malgun Gothic, AppleGothic, NanumGothic, Noto Sans KR, Arial"),
             )
             return fig
@@ -2388,7 +2468,9 @@ def tab_app3_server(input, output, session):
             fig.update_layout(
                 title=f"그래프 오류: {e}",
                 height=height_px,
-                margin=dict(l=10, r=10, t=48, b=10)
+                margin=dict(l=10, r=10, t=48, b=10),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
             )
             return fig
 

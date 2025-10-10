@@ -101,3 +101,7 @@
     height: auto;
     display: block;
 }
+
+.bslib-mb-spacing {
+    margin: 12px !important;
+}
