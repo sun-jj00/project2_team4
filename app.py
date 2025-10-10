@@ -1727,24 +1727,22 @@ def tab_app3_ui():
             # [좌] 지도 카드
             ui.card(
                 ui.card_header("대구시 읍·면·동 선택 영역 지도"),
-                ui.card_body(
-                    ui.output_ui("map_container_dyn")
-                )
+                ui.output_ui("map_container_dyn")
             ),
             # [우] 그래프 카드 3개
             ui.div(
                 {"style": "display:flex; flex-direction:column; gap:12px;"},
                 ui.card(
                     ui.card_header("동별 고령인구비율"),
-                    ui.card_body(ui.output_ui("plot_elderly")),
+                    ui.output_ui("plot_elderly"),
                 ),
                 ui.card(
                     ui.card_header("동별 지점당 인구수"),
-                    ui.card_body(ui.output_ui("plot_saturation")),
+                    ui.output_ui("plot_saturation"),
                 ),
                 ui.card(
                     ui.card_header("동별 고령유동인구 밀집도"),
-                    ui.card_body(ui.output_ui("plot_elderly_flow")),
+                    ui.output_ui("plot_elderly_flow"),
                 ),
             ),
             col_widths=[6, 6]
