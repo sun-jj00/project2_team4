@@ -314,7 +314,8 @@ def tab_app1_server(input, output, session):
     # 초기값은 모두 선택된 상태로 설정
     applied_selected_clusters = reactive.Value(["0", "5", "6"])
     T1_CURRENT_MAP = reactive.Value(None)
-    
+    applied_policy_switch = reactive.Value(False)
+
     @reactive.Effect
     @reactive.event(input.select_all)
     def _sel_all():
@@ -329,8 +330,10 @@ def tab_app1_server(input, output, session):
     @reactive.Effect
     @reactive.event(input.apply_filters)
     def _apply_filters():
-        # 현재 체크박스의 선택값을 applied_selected_clusters에 저장
+        # 현재 체크박스 선택값 저장
         applied_selected_clusters.set(input.selected_clusters())
+        # 현재 스위치 상태도 저장
+        applied_policy_switch.set(input.policy_switch())
     # ===================================
         
     @reactive.Effect
@@ -352,18 +355,28 @@ def tab_app1_server(input, output, session):
     # === 데이터 필터링 로직 수정 ===
     @reactive.Calc
     def T1_filtered_df_full():
-        base_df = T1_MERGED[T1_MERGED['클러스터'].isin([0,5,6])]
-        
-        # input.selected_clusters() 대신 applied_selected_clusters.get() 사용
+        base_df = T1_MERGED[T1_MERGED['클러스터'].isin([0, 5, 6])]
+
         current_selection = applied_selected_clusters.get()
         if not current_selection:
             return base_df
-        
+
         selected = [int(c) for c in current_selection]
         filtered = T1_MERGED[T1_MERGED['클러스터'].isin(selected)].copy()
-        
-        if input.policy_switch():
-            filtered = filtered[filtered['정책제안클러스터'] == filtered['클러스터']]
+
+        # 정책 제안만 보기 모드
+        if applied_policy_switch.get():
+            policy_map = {
+                0: [72, 145],
+                5: [201, 111, 158],
+                6: [29, 161, 57],
+            }
+            policy_ids = []
+            for cid in selected:
+                policy_ids.extend(policy_map.get(cid, []))
+
+            filtered = filtered[filtered["은행id"].isin(policy_ids)].copy()
+
         return filtered
     # ===============================
 
