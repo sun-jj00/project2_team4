@@ -197,3 +197,7 @@ details>summary {
 
 .btn-row-apply {
     margin-top: 6px; }
+
+.bslib-mb-spacing{
+    margin-bottom: 0 !important;
+}
