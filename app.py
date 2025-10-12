@@ -314,7 +314,8 @@ def tab_app1_server(input, output, session):
     # 초기값은 모두 선택된 상태로 설정
     applied_selected_clusters = reactive.Value(["0", "5", "6"])
     T1_CURRENT_MAP = reactive.Value(None)
-    
+    applied_policy_switch = reactive.Value(False)
+
     @reactive.Effect
     @reactive.event(input.select_all)
     def _sel_all():
@@ -329,8 +330,10 @@ def tab_app1_server(input, output, session):
     @reactive.Effect
     @reactive.event(input.apply_filters)
     def _apply_filters():
-        # 현재 체크박스의 선택값을 applied_selected_clusters에 저장
+        # 현재 체크박스 선택값 저장
         applied_selected_clusters.set(input.selected_clusters())
+        # 현재 스위치 상태도 저장
+        applied_policy_switch.set(input.policy_switch())
     # ===================================
         
     @reactive.Effect
@@ -352,18 +355,28 @@ def tab_app1_server(input, output, session):
     # === 데이터 필터링 로직 수정 ===
     @reactive.Calc
     def T1_filtered_df_full():
-        base_df = T1_MERGED[T1_MERGED['클러스터'].isin([0,5,6])]
-        
-        # input.selected_clusters() 대신 applied_selected_clusters.get() 사용
+        base_df = T1_MERGED[T1_MERGED['클러스터'].isin([0, 5, 6])]
+
         current_selection = applied_selected_clusters.get()
         if not current_selection:
             return base_df
-        
+
         selected = [int(c) for c in current_selection]
         filtered = T1_MERGED[T1_MERGED['클러스터'].isin(selected)].copy()
-        
-        if input.policy_switch():
-            filtered = filtered[filtered['정책제안클러스터'] == filtered['클러스터']]
+
+        # 정책 제안만 보기 모드
+        if applied_policy_switch.get():
+            policy_map = {
+                0: [72, 145],
+                5: [201, 111, 158],
+                6: [29, 161, 57],
+            }
+            policy_ids = []
+            for cid in selected:
+                policy_ids.extend(policy_map.get(cid, []))
+
+            filtered = filtered[filtered["은행id"].isin(policy_ids)].copy()
+
         return filtered
     # ===============================
 
@@ -601,21 +614,17 @@ def discrete_legend_html(title: str, vmin: float, vmax: float, cm, reverse: bool
 def make_top5_admin_fig(df_filtered: pd.DataFrame, title: str, n_top: int = 5):
     fig, ax = plt.subplots(figsize=(5, 5), dpi=120)
 
-    # === 투명 배경 ===
     fig.patch.set_alpha(0)
     ax.set_facecolor("none")
 
-    # === 그리드: 세로선 제거, 가로선만 유지 ===
     ax.grid(axis="y", color="#e0e0e0", linestyle="-", linewidth=0.8, alpha=0.5)
-    ax.grid(False, axis="x")  # ✅ 세로선 완전 제거
+    ax.grid(False, axis="x")
     ax.set_axisbelow(True)
 
-    # === 테두리 정리 ===
     for side in ["top", "right", "left"]:
         ax.spines[side].set_visible(False)
     ax.spines["bottom"].set_color("#bbb")
 
-    # === 데이터 확인 ===
     if ADMIN_COL not in df_filtered.columns or df_filtered.empty:
         ax.text(0.5, 0.5, "표시할 데이터가 없습니다.", ha="center", va="center",
                 fontsize=12, color="grey", alpha=0.8)
@@ -623,7 +632,6 @@ def make_top5_admin_fig(df_filtered: pd.DataFrame, title: str, n_top: int = 5):
         fig.tight_layout()
         return fig
 
-    # === Top N 집계 ===
     counts = (
         df_filtered[ADMIN_COL]
         .astype(str)
@@ -635,14 +643,12 @@ def make_top5_admin_fig(df_filtered: pd.DataFrame, title: str, n_top: int = 5):
     x = counts.index.tolist()
     y = counts.values.tolist()
 
-    # === 색상 팔레트 (따뜻한 오렌지 톤) ===
+    # === 색상 팔레트 (높은 값일수록 진한색) ===
     base_colors = sns.color_palette("OrRd", n_colors=len(y))
-    colors = list(base_colors)
+    colors = list(reversed(base_colors))  # ✅ 반전
 
-    # === 세로 막대 그래프 ===
     bars = ax.bar(x, y, color=colors, edgecolor="none", width=0.6, zorder=3)
 
-    # === 그림자 효과 (은은하게) ===
     for bar in bars:
         ax.add_patch(Rectangle(
             (bar.get_x() + 0.02, 0),
@@ -650,21 +656,16 @@ def make_top5_admin_fig(df_filtered: pd.DataFrame, title: str, n_top: int = 5):
             color="black", alpha=0.05, zorder=2
         ))
 
-    # === 막대 위 값 표시 ===
     for i, val in enumerate(y):
         ax.text(i, val + max(y)*0.02, f"{val:,}",
                 ha="center", va="bottom", fontsize=11, color="#444", fontweight="semibold")
 
-    # === 제목 / 라벨 ===
     ax.set_title(title, fontsize=15, fontweight="bold", pad=20, color="#333")
     ax.set_xlabel("행정동(읍·면·동)", fontsize=11, labelpad=10)
     ax.set_ylabel("은행 지점 수", fontsize=11, labelpad=10)
-
-    # === 축 스타일 ===
     ax.tick_params(axis="x", labelsize=10, rotation=25, colors="#333")
     ax.tick_params(axis="y", labelsize=10, colors="#666")
 
-    # === 여백 조정 ===
     ax.set_ylim(0, max(y) * 1.25)
     fig.tight_layout()
 
@@ -1443,22 +1444,50 @@ def tab_app2_server(input, output, session):
         applied_range_i.set((lo, hi))
 
     def popup_html(inner_html: str):
-        # 팝업 15% 확대 + 스크롤 대비
+        # 오른쪽 하단 고정형 팝업 (크기 확대 + 자연스러운 그림자)
         return f"""
-        <div style="
-            position:fixed; right:18px; bottom:18px; z-index:9999;
-            background:#ffffff; border:1px solid #ddd; border-radius:10px;
-            padding:12px 14px; box-shadow:0 2px 10px rgba(0,0,0,0.15);
-            transform: scale(1.15); transform-origin: bottom right;
-            max-width: 520px; max-height: 70vh; overflow:auto;
+        <div id="custom-popup" style="
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            z-index: 9999;
+            background: #ffffff;
+            border: 1px solid #ccc;
+            border-radius: 12px;
+            padding: 18px 20px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+            max-width: 540px;
+            max-height: 80vh;
+            overflow-y: auto;
+            transform: scale(1.05);
+            animation: fadeInUp 0.25s ease-out;
         ">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-            <div style="font-weight:600; color:#333;">설명</div>
-            <button onclick="this.parentElement.parentElement.style.display='none';"
-                    style="border:none; background:transparent; font-size:16px;">✕</button>
-          </div>
-          {inner_html}
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <div style="font-weight:600; font-size:15px; color:#333;">설명</div>
+                <button onclick="document.getElementById('custom-popup').remove()"
+                        style="
+                            border:none; background:transparent; font-size:18px;
+                            color:#666; cursor:pointer; line-height:1;
+                            transition: color 0.15s;
+                        "
+                        onmouseover="this.style.color='#000'"
+                        onmouseout="this.style.color='#666'">✕</button>
+            </div>
+            {inner_html}
         </div>
+
+        <style>
+        @keyframes fadeInUp {{
+            from {{
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }}
+            to {{
+                opacity: 1;
+                transform: translateY(0) scale(1.05);
+            }}
+        }}
+        </style>
         """
 
     @output
