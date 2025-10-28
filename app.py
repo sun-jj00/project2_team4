@@ -1444,14 +1444,23 @@ def tab_app2_server(input, output, session):
         applied_range_i.set((lo, hi))
 
     def popup_html(inner_html: str):
-        # 오른쪽 하단 고정형 팝업 (크기 확대 + 자연스러운 그림자)
+        # shinyapps.io 포함 모든 환경에서 화면 우측 하단에 고정되는 팝업
         return f"""
-        <div id="custom-popup" style="
+        <script>
+        // === 기존 팝업 제거 ===
+        var oldPopup = window.parent.document.getElementById('global-popup');
+        if (oldPopup) oldPopup.remove();
+
+        // === 팝업 요소 생성 ===
+        var popup = window.parent.document.createElement('div');
+        popup.id = 'global-popup';
+        popup.innerHTML = `
+        <div style="
             position: fixed;
             right: 24px;
             bottom: 24px;
-            z-index: 9999;
-            background: #ffffff;
+            z-index: 99999;
+            background: #fff;
             border: 1px solid #ccc;
             border-radius: 12px;
             padding: 18px 20px;
@@ -1461,33 +1470,32 @@ def tab_app2_server(input, output, session):
             overflow-y: auto;
             transform: scale(1.05);
             animation: fadeInUp 0.25s ease-out;
+            font-family: 'NanumGothic', sans-serif;
         ">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <div style="font-weight:600; font-size:15px; color:#333;">설명</div>
-                <button onclick="document.getElementById('custom-popup').remove()"
-                        style="
-                            border:none; background:transparent; font-size:18px;
-                            color:#666; cursor:pointer; line-height:1;
-                            transition: color 0.15s;
-                        "
-                        onmouseover="this.style.color='#000'"
-                        onmouseout="this.style.color='#666'">✕</button>
+            <div style="font-weight:600; font-size:15px; color:#333;">설명</div>
+            <button id="popup-close-btn" style="
+                border:none; background:transparent; font-size:18px;
+                color:#666; cursor:pointer; line-height:1;
+                transition: color 0.15s;
+            ">✕</button>
             </div>
             {inner_html}
         </div>
-
         <style>
-        @keyframes fadeInUp {{
-            from {{
-                opacity: 0;
-                transform: translateY(20px) scale(0.95);
+            @keyframes fadeInUp {{
+            from {{ opacity: 0; transform: translateY(20px) scale(0.95); }}
+            to {{ opacity: 1; transform: translateY(0) scale(1.05); }}
             }}
-            to {{
-                opacity: 1;
-                transform: translateY(0) scale(1.05);
-            }}
-        }}
         </style>
+        `;
+        window.parent.document.body.appendChild(popup);
+
+        // === 닫기 버튼 동작 ===
+        window.parent.document.getElementById('popup-close-btn').onclick = function() {{
+            popup.remove();
+        }};
+        </script>
         """
 
     @output
