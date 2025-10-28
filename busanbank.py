@@ -12,7 +12,7 @@ import json
 # 1️⃣ 데이터 로드
 # -----------------------------------------------------------------------------
 CSV_PATH = "./data/부산_타겟만.csv"
-SHP_PATH = "./LSMD_부산/LSMD_ADM_SECT_UMD_26_202510.shp"
+SHP_PATH = "./data/LSMD_부산/LSMD_ADM_SECT_UMD_26_202510.shp"
 
 try:
     df = pd.read_csv(CSV_PATH, encoding="utf-8-sig")
